@@ -117,8 +117,8 @@ void loop()
 
 	if(isSetValue == true){
 		// post ambient
-		ambient.set(1, cppm);
-		ambient.send();
+		// ambient.set(1, cppm);
+		// ambient.send();
 
 		isSetValue = false;
 	}
