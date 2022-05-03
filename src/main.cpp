@@ -48,9 +48,9 @@ void printLocalTime()
     return;
   }
 
-  // �e�L�X�g�T�C�Y�w��
+  // �e�L�X�g�T�C�Y�w��
   M5.Lcd.setTextSize(2);
-  // �J�[�\���ʒu��ݒ�
+  // �J�[�\���ʒu��ݒ�
   M5.Lcd.setCursor(40,100);
   M5.Lcd.printf("%04d-%02d-%02d %02d:%02d:%02d" 
                 ,timeinfo.tm_year + 1900
@@ -107,7 +107,7 @@ bool toUpdateDisplay = false;
 
 void loop()
 {
-	// TODO: ダストセンサの平�?かとAmbientのポスト�?�周期を独立させる
+	// TODO: ダストセンサの平�?かとAmbientのポスト�?�周期を独立させる
 	portENTER_CRITICAL_ISR(&timer0Mutex);
 	if(isTimer0Ticked == true){
 		isSetValue = true;
@@ -117,8 +117,8 @@ void loop()
 
 	if(isSetValue == true){
 		// post ambient
-		// ambient.set(1, cppm);
-		// ambient.send();
+		ambient.set(1, cppm);
+		ambient.send();
 
 		isSetValue = false;
 	}
