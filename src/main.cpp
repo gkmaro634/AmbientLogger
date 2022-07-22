@@ -48,9 +48,9 @@ void printLocalTime()
     return;
   }
 
-  // テキストサイズ指定
+  // ?ｿｽe?ｿｽL?ｿｽX?ｿｽg?ｿｽT?ｿｽC?ｿｽY?ｿｽw?ｿｽ?ｿｽ
   M5.Lcd.setTextSize(2);
-  // カーソル位置を設定
+  // ?ｿｽJ?ｿｽ[?ｿｽ\?ｿｽ?ｿｽ?ｿｽﾊ置?ｿｽ?ｿｽﾝ抵ｿｽ
   M5.Lcd.setCursor(40,100);
   M5.Lcd.printf("%04d-%02d-%02d %02d:%02d:%02d" 
                 ,timeinfo.tm_year + 1900
@@ -107,7 +107,7 @@ bool toUpdateDisplay = false;
 
 void loop()
 {
-	// TODO: 繝繧ｹ繝医そ繝ｳ繧ｵ縺ｮ蟷ｳ蝮?縺九→Ambient縺ｮ繝昴せ繝医?ｮ蜻ｨ譛溘ｒ迢ｬ遶九＆縺帙ｋ
+	// TODO: 繝繧ｹ繝医そ繝ｳ繧ｵ縺ｮ蟷ｳ?ｿｽ?縺九→Ambient縺ｮ繝昴せ繝茨ｿｽ??ｿｽ蜻ｨ譛溘ｒ迢ｬ遶九＆縺帙ｋ
 	portENTER_CRITICAL_ISR(&timer0Mutex);
 	if(isTimer0Ticked == true){
 		isSetValue = true;
