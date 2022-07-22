@@ -48,9 +48,9 @@ void printLocalTime()
     return;
   }
 
-  // ï¿½eï¿½Lï¿½Xï¿½gï¿½Tï¿½Cï¿½Yï¿½wï¿½ï¿½
+  // ?¿½e?¿½L?¿½X?¿½g?¿½T?¿½C?¿½Y?¿½w?¿½?¿½
   M5.Lcd.setTextSize(2);
-  // ï¿½Jï¿½[ï¿½\ï¿½ï¿½ï¿½Ê’uï¿½ï¿½İ’ï¿½
+  // ?¿½J?¿½[?¿½\?¿½?¿½?¿½Ê’u?¿½?¿½İ’ï¿½
   M5.Lcd.setCursor(40,100);
   M5.Lcd.printf("%04d-%02d-%02d %02d:%02d:%02d" 
                 ,timeinfo.tm_year + 1900
@@ -107,7 +107,7 @@ bool toUpdateDisplay = false;
 
 void loop()
 {
-	// TODO: ãƒ€ã‚¹ãƒˆã‚»ãƒ³ã‚µã®å¹³ï¿½?ã‹ã¨Ambientã®ãƒã‚¹ãƒˆï¿½?ï¿½å‘¨æœŸã‚’ç‹¬ç«‹ã•ã›ã‚‹
+	// TODO: ãƒ€ã‚¹ãƒˆã‚»ãƒ³ã‚µã®å¹³?¿½?ã‹ã¨Ambientã®ãƒã‚¹ãƒˆï¿½??¿½å‘¨æœŸã‚’ç‹¬ç«‹ã•ã›ã‚‹
 	portENTER_CRITICAL_ISR(&timer0Mutex);
 	if(isTimer0Ticked == true){
 		isSetValue = true;
@@ -117,8 +117,8 @@ void loop()
 
 	if(isSetValue == true){
 		// post ambient
-		ambient.set(1, cppm);
-		ambient.send();
+		// ambient.set(1, cppm);
+		// ambient.send();
 
 		isSetValue = false;
 	}
