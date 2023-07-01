@@ -48,9 +48,7 @@ void printLocalTime()
     return;
   }
 
-  // ?øΩe?øΩL?øΩX?øΩg?øΩT?øΩC?øΩY?øΩw?øΩ?øΩ
   M5.Lcd.setTextSize(2);
-  // ?øΩJ?øΩ[?øΩ\?øΩ?øΩ?øΩ íu?øΩ?øΩ›íÔøΩ
   M5.Lcd.setCursor(40,100);
   M5.Lcd.printf("%04d-%02d-%02d %02d:%02d:%02d" 
                 ,timeinfo.tm_year + 1900
@@ -83,7 +81,8 @@ void setup()
 	timerAlarmWrite(timer0, timer0InterruptTick, true);
 
 	WiFi.begin(ssid, pass);
-	while( WiFi.status() != WL_CONNECTED){
+	while( WiFi.status() != WL_CONNECTED)
+  {
 		// TODO: timeout
 		delay(500);
 		M5.Lcd.print(".");
@@ -95,7 +94,7 @@ void setup()
   //init and get the time
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);  
 
-	ambient.begin(ambientChid, writeKey, &client);
+	// ambient.begin(ambientChid, writeKey, &client);
 	delay(1000);
 	M5.Lcd.clear();
 
@@ -107,9 +106,9 @@ bool toUpdateDisplay = false;
 
 void loop()
 {
-	// TODO: „ÉÄ„Çπ„Éà„Çª„É≥„Çµ„ÅÆÂπ≥?øΩ?„Åã„Å®Ambient„ÅÆ„Éù„Çπ„ÉàÔøΩ??øΩÂë®Êúü„ÇíÁã¨Á´ã„Åï„Åõ„Çã
 	portENTER_CRITICAL_ISR(&timer0Mutex);
-	if(isTimer0Ticked == true){
+	if(isTimer0Ticked == true)
+  {
 		isSetValue = true;
 		isTimer0Ticked = false;
 	}
@@ -123,40 +122,50 @@ void loop()
 		isSetValue = false;
 	}
 
-	while(true){
-		if(digitalRead(mhz19cPin) != LOW){
+	while(true)
+  {
+		if(digitalRead(mhz19cPin) != LOW)
+    {
 			break;
 		}
 	}
+
 	mhz19cOutputHighDuration = pulseIn(mhz19cPin, HIGH, 3000 * 1000);// TODO: other thread
-	if(mhz19cOutputHighDuration != 0){
+	if(mhz19cOutputHighDuration != 0)
+  {
 		float th = (float)mhz19cOutputHighDuration / 1000.0;
 		cppm = 2.0 * (th - 2.0);
     toUpdateDisplay = true;
   }
-  else{
+  else
+  {
     toUpdateDisplay = false;
   }
-  if(sht30.get() == 0){
+
+  if(sht30.get() == 0)
+  {
     temperature = sht30.cTemp;
     humidity = sht30.humidity;
   }
 
   // display current values
-  if(toUpdateDisplay == true){
+  if(toUpdateDisplay == true)
+  {
     M5.Lcd.setCursor(0, 0);
 
     struct tm timeinfo;
-    if(getLocalTime(&timeinfo)){
+    if(getLocalTime(&timeinfo))
+    {
       // M5.Lcd.println("Failed to obtain time");
       M5.Lcd.printf("%02d:%02d:%02d\r\n"
                     ,timeinfo.tm_hour
                     ,timeinfo.tm_min
                     ,timeinfo.tm_sec
                     );
-    M5.Lcd.printf("\r\n");
+      M5.Lcd.printf("\r\n");
     }
-    else{
+    else
+    {
       M5.Lcd.printf("**:**:**");
     }
 
