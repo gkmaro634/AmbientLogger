@@ -3,15 +3,11 @@
 #include <Wire.h>
 #include <WiFi.h>
 #include <math.h>
-#include "Ambient.h"
 #include "secret.h"
 #include "SHT3X.h"
 #include "time.h"
 
-#define AMBIENT_POST_INTERVAL_SECONDS 300
-
 WiFiClient client;
-Ambient ambient;
 
 SHT3X sht30;
 float temperature = 0.0;
@@ -94,7 +90,6 @@ void setup()
   //init and get the time
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);  
 
-	// ambient.begin(ambientChid, writeKey, &client);
 	delay(1000);
 	M5.Lcd.clear();
 
@@ -115,10 +110,6 @@ void loop()
 	portEXIT_CRITICAL_ISR(&timer0Mutex);
 
 	if(isSetValue == true){
-		// post ambient
-		// ambient.set(1, cppm);
-		// ambient.send();
-
 		isSetValue = false;
 	}
 
