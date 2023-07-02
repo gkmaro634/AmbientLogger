@@ -5,6 +5,7 @@
 #include <math.h>
 #include "secret.h"
 #include "SHT3X.h"
+#include "MHZ19C.h"
 #include "time.h"
 
 WiFiClient client;
@@ -25,16 +26,17 @@ const int esp32SystemClock = 80 * 1e6;
 const int timer0TickIntervalMilliSeconds = 30 * 1000;
 uint64_t timer0InterruptTick =  (double)esp32SystemClock / (double)timer0Prescaler * (double)timer0TickIntervalMilliSeconds / 1000.0;
 
-const int mhz19cPin = 36;
-unsigned int mhz19cOutputHighDuration = 0;
-float cppm = 0.0;
+float ccpm = 0.0;
+MHZ19C mhz19c;
+
+struct tm timeinfo;
 
 void IRAM_ATTR onTimer0Ticked(){
 	portENTER_CRITICAL_ISR(&timer0Mutex);
 	isTimer0Ticked = true;
 	portEXIT_CRITICAL_ISR(&timer0Mutex);
 }
-
+/* 
 void printLocalTime()
 {
   struct tm timeinfo;
@@ -54,7 +56,7 @@ void printLocalTime()
                 ,timeinfo.tm_min
                 ,timeinfo.tm_sec
                 );
-}
+} */
 
 void setup()
 {
@@ -71,7 +73,8 @@ void setup()
 	// M5.Lcd.setBrightness(0);
 	// Serial.println("Hello World!");
 
-	pinMode(mhz19cPin, INPUT);
+  mhz19c = MHZ19C(36);
+
 	timer0 = timerBegin(0, timer0Prescaler, true);// 1us?
 	timerAttachInterrupt(timer0, &onTimer0Ticked, true);
 	timerAlarmWrite(timer0, timer0InterruptTick, true);
@@ -113,24 +116,15 @@ void loop()
 		isSetValue = false;
 	}
 
-	while(true)
+  if(mhz19c.get() != 0)
   {
-		if(digitalRead(mhz19cPin) != LOW)
-    {
-			break;
-		}
-	}
-
-	mhz19cOutputHighDuration = pulseIn(mhz19cPin, HIGH, 3000 * 1000);// TODO: other thread
-	if(mhz19cOutputHighDuration != 0)
-  {
-		float th = (float)mhz19cOutputHighDuration / 1000.0;
-		cppm = 2.0 * (th - 2.0);
-    toUpdateDisplay = true;
+    toUpdateDisplay = false;
+    ccpm = 0.0;
   }
   else
   {
-    toUpdateDisplay = false;
+    toUpdateDisplay = true;
+    ccpm = mhz19c.ccpm;
   }
 
   if(sht30.get() == 0)
@@ -139,33 +133,29 @@ void loop()
     humidity = sht30.humidity;
   }
 
+  getLocalTime(&timeinfo);
+
   // display current values
   if(toUpdateDisplay == true)
   {
     M5.Lcd.setCursor(0, 0);
 
-    struct tm timeinfo;
-    if(getLocalTime(&timeinfo))
-    {
-      // M5.Lcd.println("Failed to obtain time");
-      M5.Lcd.printf("%02d:%02d:%02d\r\n"
-                    ,timeinfo.tm_hour
-                    ,timeinfo.tm_min
-                    ,timeinfo.tm_sec
-                    );
-      M5.Lcd.printf("\r\n");
-    }
-    else
-    {
-      M5.Lcd.printf("**:**:**");
-    }
+    // M5.Lcd.println("Failed to obtain time");
+    M5.Lcd.printf("%02d:%02d:%02d\r\n"
+                  ,timeinfo.tm_hour
+                  ,timeinfo.tm_min
+                  ,timeinfo.tm_sec
+                  );
+    M5.Lcd.printf("\r\n");
 
     M5.Lcd.printf("CO2:\r\n");
-    M5.Lcd.printf("%4.2f [ppm]\r\n", cppm);
+    M5.Lcd.printf("%4.2f [ppm]\r\n", ccpm);
     M5.Lcd.printf("\r\n");
+
     M5.Lcd.printf("Temperature:\r\n");
     M5.Lcd.printf("%2.1f [deg]\r\n", temperature);
     M5.Lcd.printf("\r\n");
+
     M5.Lcd.printf("Humidity:\r\n");
     M5.Lcd.printf("%2.1f [%%]\r\n", humidity);
   }

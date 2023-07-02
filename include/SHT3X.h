@@ -1,5 +1,5 @@
 #ifndef __SHT3X_H
-#define __HT3X_H
+#define __SHT3X_H
 
 
 #if ARDUINO >= 100
