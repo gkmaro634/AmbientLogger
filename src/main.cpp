@@ -3,82 +3,62 @@
 #include <Wire.h>
 #include <WiFi.h>
 #include <math.h>
-#include "Ambient.h"
 #include "secret.h"
 #include "SHT3X.h"
+#include "MHZ19C.h"
+#include "MyDateTime.h"
 #include "time.h"
-
-#define AMBIENT_POST_INTERVAL_SECONDS 300
+#include "Measurement.h"
 
 WiFiClient client;
-Ambient ambient;
 
+MyDateTime dt;
+
+// view model
+Measurement temperature("Temp.", "C");
+Measurement humidity("Hum.", "%");
+Measurement ccpm("CO2", "ppm");
+
+// device
 SHT3X sht30;
-float temperature = 0.0;
-float humidity = 0.0;
+MHZ19C mhz19c;
 
-const char* ntpServer = "ntp.nict.jp";
-const long  gmtOffset_sec = 3600 * 9;
-const int   daylightOffset_sec = 0;
-
-hw_timer_t * timer0 = NULL;
-portMUX_TYPE timer0Mutex = portMUX_INITIALIZER_UNLOCKED;
-volatile bool isTimer0Ticked = false;
-const uint16_t timer0Prescaler = 80;// 80MHz / 80 = 1MHz
-const int esp32SystemClock = 80 * 1e6;
-const int timer0TickIntervalMilliSeconds = 30 * 1000;
-uint64_t timer0InterruptTick =  (double)esp32SystemClock / (double)timer0Prescaler * (double)timer0TickIntervalMilliSeconds / 1000.0;
-
-const int mhz19cPin = 36;
-unsigned int mhz19cOutputHighDuration = 0;
-float cppm = 0.0;
-
-void IRAM_ATTR onTimer0Ticked(){
-	portENTER_CRITICAL_ISR(&timer0Mutex);
-	isTimer0Ticked = true;
-	portEXIT_CRITICAL_ISR(&timer0Mutex);
-}
-
-void printLocalTime()
+void acquisitionTask(void* arg)
 {
-  struct tm timeinfo;
+  Wire.begin();
+  mhz19c = MHZ19C(36);
 
-  if(!getLocalTime(&timeinfo)){
-    // M5.Lcd.println("Failed to obtain time");
-    return;
+  while (1)
+  {
+    if(mhz19c.get() == 0)
+    {
+      ccpm.SetValue(mhz19c.ccpm);
+    }
+
+    if(sht30.get() == 0)
+    {
+      temperature.SetValue(sht30.cTemp);
+      humidity.SetValue(sht30.humidity);
+    }
+
+    vTaskDelay(100);
   }
-
-  M5.Lcd.setTextSize(2);
-  M5.Lcd.setCursor(40,100);
-  M5.Lcd.printf("%04d-%02d-%02d %02d:%02d:%02d" 
-                ,timeinfo.tm_year + 1900
-                ,timeinfo.tm_mon
-                ,timeinfo.tm_mday
-                ,timeinfo.tm_hour
-                ,timeinfo.tm_min
-                ,timeinfo.tm_sec
-                );
 }
 
 void setup()
 {
 	// put your setup code here, to run once:
 	M5.begin(115200);
-	M5.Lcd.setTextSize(3);
+  M5.Lcd.setTextFont(2);// 16px ascii
+	// M5.Lcd.setTextSize(3);
 	M5.Lcd.setBrightness(64);
+
 	disableCore0WDT();
 	disableCore1WDT();
-
-  Wire.begin();
 
 	// M5.Lcd.sleep();
 	// M5.Lcd.setBrightness(0);
 	// Serial.println("Hello World!");
-
-	pinMode(mhz19cPin, INPUT);
-	timer0 = timerBegin(0, timer0Prescaler, true);// 1us?
-	timerAttachInterrupt(timer0, &onTimer0Ticked, true);
-	timerAlarmWrite(timer0, timer0InterruptTick, true);
 
 	WiFi.begin(ssid, pass);
 	while( WiFi.status() != WL_CONNECTED)
@@ -91,95 +71,55 @@ void setup()
 	M5.Lcd.println("WiFi connected");
 	// Serial.println("WiFi connected");
 
-  //init and get the time
-  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);  
+  dt.Initialize();
 
-	// ambient.begin(ambientChid, writeKey, &client);
 	delay(1000);
 	M5.Lcd.clear();
 
-	timerAlarmEnable(timer0);
+  xTaskCreatePinnedToCore(acquisitionTask, "Task0", 4096, NULL, 1, NULL, 1);
 }
-
-bool isSetValue = false;
-bool toUpdateDisplay = false;
 
 void loop()
 {
-	portENTER_CRITICAL_ISR(&timer0Mutex);
-	if(isTimer0Ticked == true)
-  {
-		isSetValue = true;
-		isTimer0Ticked = false;
-	}
-	portEXIT_CRITICAL_ISR(&timer0Mutex);
+  dt.GetLocalTime();
 
-	if(isSetValue == true){
-		// post ambient
-		// ambient.set(1, cppm);
-		// ambient.send();
+  // header
+  M5.Lcd.setCursor(0, 0);
+	M5.Lcd.setTextSize(2);// 32px
+  M5.Lcd.printf("%02d/%02d\r\n" ,dt.dt_month ,dt.dt_day);
 
-		isSetValue = false;
-	}
+  M5.Lcd.setCursor(160, 0);
+	M5.Lcd.setTextSize(2);// 32px
+  M5.Lcd.printf("%02d:%02d:%02d\r\n" ,dt.dt_hour ,dt.dt_min ,dt.dt_sec);
 
-	while(true)
-  {
-		if(digitalRead(mhz19cPin) != LOW)
-    {
-			break;
-		}
-	}
+  // grid row0,col0
+  M5.Lcd.setCursor(0, 40);
+	M5.Lcd.setTextSize(2);// 32px
+  M5.Lcd.printf("%s [%s]:\r\n", ccpm.GetTitle(), ccpm.GetUnit());
 
-	mhz19cOutputHighDuration = pulseIn(mhz19cPin, HIGH, 3000 * 1000);// TODO: other thread
-	if(mhz19cOutputHighDuration != 0)
-  {
-		float th = (float)mhz19cOutputHighDuration / 1000.0;
-		cppm = 2.0 * (th - 2.0);
-    toUpdateDisplay = true;
-  }
-  else
-  {
-    toUpdateDisplay = false;
-  }
+  M5.Lcd.setCursor(0, 72);
+	M5.Lcd.setTextSize(3);// 48px
+  M5.Lcd.printf("%4.2f\r\n", ccpm.GetValue());
 
-  if(sht30.get() == 0)
-  {
-    temperature = sht30.cTemp;
-    humidity = sht30.humidity;
-  }
+  // grid row1,col0
+  M5.Lcd.setCursor(0, 136);
+	M5.Lcd.setTextSize(2);// 32px
+  M5.Lcd.printf("%s [%s]:\r\n", temperature.GetTitle(), temperature.GetUnit());
 
-  // display current values
-  if(toUpdateDisplay == true)
-  {
-    M5.Lcd.setCursor(0, 0);
+  M5.Lcd.setCursor(0, 168);
+	M5.Lcd.setTextSize(3);// 48px
+  M5.Lcd.printf("%2.1f\r\n", temperature.GetValue());
 
-    struct tm timeinfo;
-    if(getLocalTime(&timeinfo))
-    {
-      // M5.Lcd.println("Failed to obtain time");
-      M5.Lcd.printf("%02d:%02d:%02d\r\n"
-                    ,timeinfo.tm_hour
-                    ,timeinfo.tm_min
-                    ,timeinfo.tm_sec
-                    );
-      M5.Lcd.printf("\r\n");
-    }
-    else
-    {
-      M5.Lcd.printf("**:**:**");
-    }
+  // grid row1,col1
+  M5.Lcd.setCursor(160, 136);
+	M5.Lcd.setTextSize(2);// 32px
+  M5.Lcd.printf("%s [%s]:\r\n", humidity.GetTitle(), humidity.GetUnit());
 
-    M5.Lcd.printf("CO2:\r\n");
-    M5.Lcd.printf("%4.2f [ppm]\r\n", cppm);
-    M5.Lcd.printf("\r\n");
-    M5.Lcd.printf("Temperature:\r\n");
-    M5.Lcd.printf("%2.1f [deg]\r\n", temperature);
-    M5.Lcd.printf("\r\n");
-    M5.Lcd.printf("Humidity:\r\n");
-    M5.Lcd.printf("%2.1f [%%]\r\n", humidity);
-  }
+  M5.Lcd.setCursor(160, 168);
+	M5.Lcd.setTextSize(3);// 48px
+  M5.Lcd.printf("%2.1f\r\n", humidity.GetValue());
 
-	delay(1);
+	vTaskDelay(200);
 }
 
 
