@@ -8,12 +8,9 @@
 #include "MHZ19C.h"
 #include "MyDateTime.h"
 #include "time.h"
+#include "Measurement.h"
 
 WiFiClient client;
-
-SHT3X sht30;
-float temperature = 0.0;
-float humidity = 0.0;
 
 hw_timer_t * timer0 = NULL;
 portMUX_TYPE timer0Mutex = portMUX_INITIALIZER_UNLOCKED;
@@ -23,10 +20,16 @@ const int esp32SystemClock = 80 * 1e6;
 const int timer0TickIntervalMilliSeconds = 30 * 1000;
 uint64_t timer0InterruptTick =  (double)esp32SystemClock / (double)timer0Prescaler * (double)timer0TickIntervalMilliSeconds / 1000.0;
 
-float ccpm = 0.0;
-MHZ19C mhz19c;
-
 MyDateTime dt;
+
+// view model
+Measurement temperature("Temperature", "[deg]");
+Measurement humidity("Humidity", "[%%]");
+Measurement ccpm("CO2", "[ppm]");
+
+// device
+SHT3X sht30;
+MHZ19C mhz19c;
 
 void IRAM_ATTR onTimer0Ticked(){
 	portENTER_CRITICAL_ISR(&timer0Mutex);
@@ -94,18 +97,18 @@ void loop()
   if(mhz19c.get() != 0)
   {
     toUpdateDisplay = false;
-    ccpm = 0.0;
+    ccpm.SetValue(0.0);
   }
   else
   {
     toUpdateDisplay = true;
-    ccpm = mhz19c.ccpm;
+    ccpm.SetValue(mhz19c.ccpm);
   }
 
   if(sht30.get() == 0)
   {
-    temperature = sht30.cTemp;
-    humidity = sht30.humidity;
+    temperature.SetValue(sht30.cTemp);
+    humidity.SetValue(sht30.humidity);
   }
 
   dt.GetLocalTime();
@@ -119,16 +122,16 @@ void loop()
 
     M5.Lcd.printf("\r\n");
 
-    M5.Lcd.printf("CO2:\r\n");
-    M5.Lcd.printf("%4.2f [ppm]\r\n", ccpm);
+    M5.Lcd.printf("%s:\r\n", ccpm.GetTitle());
+    M5.Lcd.printf("%4.2f %s\r\n", ccpm.GetValue(), ccpm.GetUnit());
     M5.Lcd.printf("\r\n");
 
-    M5.Lcd.printf("Temperature:\r\n");
-    M5.Lcd.printf("%2.1f [deg]\r\n", temperature);
+    M5.Lcd.printf("%s:\r\n", temperature.GetTitle());
+    M5.Lcd.printf("%2.1f %s\r\n", temperature.GetValue(), temperature.GetUnit());
     M5.Lcd.printf("\r\n");
 
-    M5.Lcd.printf("Humidity:\r\n");
-    M5.Lcd.printf("%2.1f [%%]\r\n", humidity);
+    M5.Lcd.printf("%s:\r\n", humidity.GetTitle());
+    M5.Lcd.printf("%2.1f %s\r\n", humidity.GetValue(), humidity.GetUnit());
   }
 
 	delay(1);
