@@ -10,6 +10,13 @@
 #include "time.h"
 #include "Measurement.h"
 
+#define ROW_MARGIN  8
+#define ROW0_Y      0
+#define ROW1_Y      48
+#define ROW2_Y      144
+#define COL0_X      0
+#define COL1_X      160
+
 WiFiClient client;
 
 MyDateTime dt;
@@ -49,7 +56,7 @@ void setup()
 {
 	// put your setup code here, to run once:
 	M5.begin(115200);
-  M5.Lcd.setTextFont(2);// 16px ascii
+  // M5.Lcd.setTextFont(2);// 16px ascii
 	// M5.Lcd.setTextSize(3);
 	M5.Lcd.setBrightness(64);
 
@@ -84,39 +91,47 @@ void loop()
   dt.GetLocalTime();
 
   // header
-  M5.Lcd.setCursor(0, 0);
-	M5.Lcd.setTextSize(2);// 32px
-  M5.Lcd.printf("%02d/%02d\r\n" ,dt.dt_month ,dt.dt_day);
-
-  M5.Lcd.setCursor(160, 0);
-	M5.Lcd.setTextSize(2);// 32px
+  M5.Lcd.setTextFont(7);// 48px 7seg
+  M5.Lcd.setCursor(COL0_X, ROW0_Y);
+	M5.Lcd.setTextSize(1);
   M5.Lcd.printf("%02d:%02d:%02d\r\n" ,dt.dt_hour ,dt.dt_min ,dt.dt_sec);
 
+  // M5.Lcd.setTextFont(7);// 48px 7seg
+  // M5.Lcd.setCursor(0, 0);
+	// M5.Lcd.setTextSize(1);
+  // M5.Lcd.printf("%02d/%02d\r\n" ,dt.dt_month ,dt.dt_day);
+
   // grid row0,col0
-  M5.Lcd.setCursor(0, 40);
-	M5.Lcd.setTextSize(2);// 32px
+  M5.Lcd.setTextFont(4);// 26px ascii
+  M5.Lcd.setCursor(COL0_X, ROW1_Y + ROW_MARGIN);
+	M5.Lcd.setTextSize(1);
   M5.Lcd.printf("%s [%s]:\r\n", ccpm.GetTitle(), ccpm.GetUnit());
 
-  M5.Lcd.setCursor(0, 72);
-	M5.Lcd.setTextSize(3);// 48px
+  M5.Lcd.setTextFont(7);// 48px 7seg
+  M5.Lcd.setCursor(COL0_X, ROW1_Y + 26 + ROW_MARGIN);
+	M5.Lcd.setTextSize(1);
   M5.Lcd.printf("%4.2f\r\n", ccpm.GetValue());
 
   // grid row1,col0
-  M5.Lcd.setCursor(0, 136);
-	M5.Lcd.setTextSize(2);// 32px
+  M5.Lcd.setTextFont(4);// 26px ascii
+  M5.Lcd.setCursor(COL0_X, ROW2_Y + ROW_MARGIN);
+	M5.Lcd.setTextSize(1);
   M5.Lcd.printf("%s [%s]:\r\n", temperature.GetTitle(), temperature.GetUnit());
 
-  M5.Lcd.setCursor(0, 168);
-	M5.Lcd.setTextSize(3);// 48px
+  M5.Lcd.setTextFont(7);// 48px 7seg
+  M5.Lcd.setCursor(COL0_X, ROW2_Y + 26 + ROW_MARGIN);
+	M5.Lcd.setTextSize(1);
   M5.Lcd.printf("%2.1f\r\n", temperature.GetValue());
 
   // grid row1,col1
-  M5.Lcd.setCursor(160, 136);
-	M5.Lcd.setTextSize(2);// 32px
+  M5.Lcd.setTextFont(4);// 26px ascii
+  M5.Lcd.setCursor(COL1_X, ROW2_Y + ROW_MARGIN);
+	M5.Lcd.setTextSize(1);
   M5.Lcd.printf("%s [%s]:\r\n", humidity.GetTitle(), humidity.GetUnit());
 
-  M5.Lcd.setCursor(160, 168);
-	M5.Lcd.setTextSize(3);// 48px
+  M5.Lcd.setTextFont(7);// 48px 7seg
+  M5.Lcd.setCursor(COL1_X, ROW2_Y + 26 + ROW_MARGIN);
+	M5.Lcd.setTextSize(1);
   M5.Lcd.printf("%2.1f\r\n", humidity.GetValue());
 
 	vTaskDelay(200);
