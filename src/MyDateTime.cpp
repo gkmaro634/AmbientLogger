@@ -22,6 +22,6 @@ void MyDateTime::GetLocalTime()
   dt_min = _timeinfo.tm_min;
   dt_hour = _timeinfo.tm_hour;
   dt_day = _timeinfo.tm_mday;
-  dt_month = _timeinfo.tm_mon;
+  dt_month = _timeinfo.tm_mon + 1;
   dt_year = _timeinfo.tm_year + 1900;
 }

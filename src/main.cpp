@@ -15,9 +15,9 @@ WiFiClient client;
 MyDateTime dt;
 
 // view model
-Measurement temperature("Temperature", "[deg]");
-Measurement humidity("Humidity", "[%%]");
-Measurement ccpm("CO2", "[ppm]");
+Measurement temperature("Temp.", "C");
+Measurement humidity("Hum.", "%");
+Measurement ccpm("CO2", "ppm");
 
 // device
 SHT3X sht30;
@@ -49,11 +49,12 @@ void setup()
 {
 	// put your setup code here, to run once:
 	M5.begin(115200);
-	M5.Lcd.setTextSize(3);
+  M5.Lcd.setTextFont(2);// 16px ascii
+	// M5.Lcd.setTextSize(3);
 	M5.Lcd.setBrightness(64);
+
 	disableCore0WDT();
 	disableCore1WDT();
-
 
 	// M5.Lcd.sleep();
 	// M5.Lcd.setBrightness(0);
@@ -82,22 +83,41 @@ void loop()
 {
   dt.GetLocalTime();
 
+  // header
   M5.Lcd.setCursor(0, 0);
+	M5.Lcd.setTextSize(2);// 32px
+  M5.Lcd.printf("%02d/%02d\r\n" ,dt.dt_month ,dt.dt_day);
 
+  M5.Lcd.setCursor(160, 0);
+	M5.Lcd.setTextSize(2);// 32px
   M5.Lcd.printf("%02d:%02d:%02d\r\n" ,dt.dt_hour ,dt.dt_min ,dt.dt_sec);
 
-  M5.Lcd.printf("\r\n");
+  // grid row0,col0
+  M5.Lcd.setCursor(0, 40);
+	M5.Lcd.setTextSize(2);// 32px
+  M5.Lcd.printf("%s [%s]:\r\n", ccpm.GetTitle(), ccpm.GetUnit());
 
-  M5.Lcd.printf("%s:\r\n", ccpm.GetTitle());
-  M5.Lcd.printf("%4.2f %s\r\n", ccpm.GetValue(), ccpm.GetUnit());
-  M5.Lcd.printf("\r\n");
+  M5.Lcd.setCursor(0, 72);
+	M5.Lcd.setTextSize(3);// 48px
+  M5.Lcd.printf("%4.2f\r\n", ccpm.GetValue());
 
-  M5.Lcd.printf("%s:\r\n", temperature.GetTitle());
-  M5.Lcd.printf("%2.1f %s\r\n", temperature.GetValue(), temperature.GetUnit());
-  M5.Lcd.printf("\r\n");
+  // grid row1,col0
+  M5.Lcd.setCursor(0, 136);
+	M5.Lcd.setTextSize(2);// 32px
+  M5.Lcd.printf("%s [%s]:\r\n", temperature.GetTitle(), temperature.GetUnit());
 
-  M5.Lcd.printf("%s:\r\n", humidity.GetTitle());
-  M5.Lcd.printf("%2.1f %s\r\n", humidity.GetValue(), humidity.GetUnit());
+  M5.Lcd.setCursor(0, 168);
+	M5.Lcd.setTextSize(3);// 48px
+  M5.Lcd.printf("%2.1f\r\n", temperature.GetValue());
+
+  // grid row1,col1
+  M5.Lcd.setCursor(160, 136);
+	M5.Lcd.setTextSize(2);// 32px
+  M5.Lcd.printf("%s [%s]:\r\n", humidity.GetTitle(), humidity.GetUnit());
+
+  M5.Lcd.setCursor(160, 168);
+	M5.Lcd.setTextSize(3);// 48px
+  M5.Lcd.printf("%2.1f\r\n", humidity.GetValue());
 
 	vTaskDelay(200);
 }
