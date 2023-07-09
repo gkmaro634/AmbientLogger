@@ -6,6 +6,7 @@
 #include "secret.h"
 #include "SHT3X.h"
 #include "MHZ19C.h"
+#include "MyDateTime.h"
 #include "time.h"
 
 WiFiClient client;
@@ -13,10 +14,6 @@ WiFiClient client;
 SHT3X sht30;
 float temperature = 0.0;
 float humidity = 0.0;
-
-const char* ntpServer = "ntp.nict.jp";
-const long  gmtOffset_sec = 3600 * 9;
-const int   daylightOffset_sec = 0;
 
 hw_timer_t * timer0 = NULL;
 portMUX_TYPE timer0Mutex = portMUX_INITIALIZER_UNLOCKED;
@@ -29,34 +26,13 @@ uint64_t timer0InterruptTick =  (double)esp32SystemClock / (double)timer0Prescal
 float ccpm = 0.0;
 MHZ19C mhz19c;
 
-struct tm timeinfo;
+MyDateTime dt;
 
 void IRAM_ATTR onTimer0Ticked(){
 	portENTER_CRITICAL_ISR(&timer0Mutex);
 	isTimer0Ticked = true;
 	portEXIT_CRITICAL_ISR(&timer0Mutex);
 }
-/* 
-void printLocalTime()
-{
-  struct tm timeinfo;
-
-  if(!getLocalTime(&timeinfo)){
-    // M5.Lcd.println("Failed to obtain time");
-    return;
-  }
-
-  M5.Lcd.setTextSize(2);
-  M5.Lcd.setCursor(40,100);
-  M5.Lcd.printf("%04d-%02d-%02d %02d:%02d:%02d" 
-                ,timeinfo.tm_year + 1900
-                ,timeinfo.tm_mon
-                ,timeinfo.tm_mday
-                ,timeinfo.tm_hour
-                ,timeinfo.tm_min
-                ,timeinfo.tm_sec
-                );
-} */
 
 void setup()
 {
@@ -90,8 +66,7 @@ void setup()
 	M5.Lcd.println("WiFi connected");
 	// Serial.println("WiFi connected");
 
-  //init and get the time
-  configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);  
+  dt.Initialize();
 
 	delay(1000);
 	M5.Lcd.clear();
@@ -133,19 +108,15 @@ void loop()
     humidity = sht30.humidity;
   }
 
-  getLocalTime(&timeinfo);
+  dt.GetLocalTime();
 
   // display current values
   if(toUpdateDisplay == true)
   {
     M5.Lcd.setCursor(0, 0);
-
     // M5.Lcd.println("Failed to obtain time");
-    M5.Lcd.printf("%02d:%02d:%02d\r\n"
-                  ,timeinfo.tm_hour
-                  ,timeinfo.tm_min
-                  ,timeinfo.tm_sec
-                  );
+    M5.Lcd.printf("%02d:%02d:%02d\r\n" ,dt.dt_hour ,dt.dt_min ,dt.dt_sec);
+
     M5.Lcd.printf("\r\n");
 
     M5.Lcd.printf("CO2:\r\n");
