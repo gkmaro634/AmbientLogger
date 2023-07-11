@@ -9,6 +9,7 @@
 #include "MyDateTime.h"
 #include "time.h"
 #include "Measurement.h"
+#include "DiscomfortIndex.h"
 
 #define ROW_MARGIN  8
 #define ROW0_Y      0
@@ -25,6 +26,7 @@ MyDateTime dt;
 Measurement temperature("Temp.", "C");
 Measurement humidity("Hum.", "%");
 Measurement ccpm("CO2", "ppm");
+DiscomfortIndex discomfortIndex;
 
 // device
 SHT3X sht30;
@@ -46,6 +48,7 @@ void acquisitionTask(void* arg)
     {
       temperature.SetValue(sht30.cTemp);
       humidity.SetValue(sht30.humidity);
+      discomfortIndex.Update(temperature.GetValue(), humidity.GetValue());
     }
 
     vTaskDelay(100);
@@ -90,18 +93,18 @@ void loop()
 {
   dt.GetLocalTime();
 
-  // header
+  // grid row0,col0
   M5.Lcd.setTextFont(7);// 48px 7seg
   M5.Lcd.setCursor(COL0_X, ROW0_Y);
 	M5.Lcd.setTextSize(1);
-  M5.Lcd.printf("%02d:%02d:%02d\r\n" ,dt.dt_hour ,dt.dt_min ,dt.dt_sec);
+  M5.Lcd.printf("%02d:%02d\r\n" ,dt.dt_hour ,dt.dt_min);
 
   // M5.Lcd.setTextFont(7);// 48px 7seg
   // M5.Lcd.setCursor(0, 0);
 	// M5.Lcd.setTextSize(1);
   // M5.Lcd.printf("%02d/%02d\r\n" ,dt.dt_month ,dt.dt_day);
 
-  // grid row0,col0
+  // grid row1,col0
   M5.Lcd.setTextFont(4);// 26px ascii
   M5.Lcd.setCursor(COL0_X, ROW1_Y + ROW_MARGIN);
 	M5.Lcd.setTextSize(1);
@@ -110,9 +113,31 @@ void loop()
   M5.Lcd.setTextFont(7);// 48px 7seg
   M5.Lcd.setCursor(COL0_X, ROW1_Y + 26 + ROW_MARGIN);
 	M5.Lcd.setTextSize(1);
-  M5.Lcd.printf("%4.2f\r\n", ccpm.GetValue());
+  M5.Lcd.printf("%4.0f\r\n", ccpm.GetValue());
 
-  // grid row1,col0
+  // grid row1.col1
+  M5.Lcd.setTextFont(4);// 26px ascii
+  M5.Lcd.setCursor(COL1_X, ROW1_Y + ROW_MARGIN);
+	M5.Lcd.setTextSize(1);
+  if (discomfortIndex.GetValue() < 55)
+  {
+    M5.Lcd.printf("((>_<))  \r\n");
+  }
+  else if(discomfortIndex.GetValue() < 75)
+  {
+    M5.Lcd.printf("(^_^)    \r\n");
+  }
+  else
+  {
+    M5.Lcd.printf("(x_x;)   \r\n");
+  }
+
+  M5.Lcd.setTextFont(7);// 48px 7seg
+  M5.Lcd.setCursor(COL1_X, ROW1_Y + 26 + ROW_MARGIN);
+	M5.Lcd.setTextSize(1);
+  M5.Lcd.printf("%d\r\n", discomfortIndex.GetValue());
+
+  // grid row2,col0
   M5.Lcd.setTextFont(4);// 26px ascii
   M5.Lcd.setCursor(COL0_X, ROW2_Y + ROW_MARGIN);
 	M5.Lcd.setTextSize(1);
@@ -123,7 +148,7 @@ void loop()
 	M5.Lcd.setTextSize(1);
   M5.Lcd.printf("%2.1f\r\n", temperature.GetValue());
 
-  // grid row1,col1
+  // grid row2,col1
   M5.Lcd.setTextFont(4);// 26px ascii
   M5.Lcd.setCursor(COL1_X, ROW2_Y + ROW_MARGIN);
 	M5.Lcd.setTextSize(1);
