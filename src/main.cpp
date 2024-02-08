@@ -22,6 +22,8 @@ WiFiClient client;
 
 MyDateTime dt;
 
+TFT_eSprite sprite(&M5.Lcd);
+
 // view model
 Measurement temperature("Temp.", "C");
 Measurement humidity("Hum.", "%");
@@ -62,6 +64,7 @@ void setup()
   // M5.Lcd.setTextFont(2);// 16px ascii
 	// M5.Lcd.setTextSize(3);
 	M5.Lcd.setBrightness(64);
+  sprite.createSprite(M5.Lcd.width(), M5.Lcd.height());
 
 	disableCore0WDT();
 	disableCore1WDT();
@@ -93,71 +96,75 @@ void loop()
 {
   dt.GetLocalTime();
 
-  // grid row0,col0
-  M5.Lcd.setTextFont(7);// 48px 7seg
-  M5.Lcd.setCursor(COL0_X, ROW0_Y);
-	M5.Lcd.setTextSize(1);
-  M5.Lcd.printf("%02d:%02d\r\n" ,dt.dt_hour ,dt.dt_min);
+  sprite.fillScreen(BLACK);
 
-  // M5.Lcd.setTextFont(7);// 48px 7seg
-  // M5.Lcd.setCursor(0, 0);
-	// M5.Lcd.setTextSize(1);
-  // M5.Lcd.printf("%02d/%02d\r\n" ,dt.dt_month ,dt.dt_day);
+  // grid row0,col0
+  sprite.setTextFont(7);// 48px 7seg
+  sprite.setCursor(COL0_X, ROW0_Y);
+	sprite.setTextSize(1);
+  sprite.printf("%02d:%02d\r\n" ,dt.dt_hour ,dt.dt_min);
+
+  // sprite.setTextFont(7);// 48px 7seg
+  // sprite.setCursor(0, 0);
+	// sprite.setTextSize(1);
+  // sprite.printf("%02d/%02d\r\n" ,dt.dt_month ,dt.dt_day);
 
   // grid row1,col0
-  M5.Lcd.setTextFont(4);// 26px ascii
-  M5.Lcd.setCursor(COL0_X, ROW1_Y + ROW_MARGIN);
-	M5.Lcd.setTextSize(1);
-  M5.Lcd.printf("%s [%s]:\r\n", ccpm.GetTitle(), ccpm.GetUnit());
+  sprite.setTextFont(4);// 26px ascii
+  sprite.setCursor(COL0_X, ROW1_Y + ROW_MARGIN);
+	sprite.setTextSize(1);
+  sprite.printf("%s [%s]:\r\n", ccpm.GetTitle(), ccpm.GetUnit());
 
-  M5.Lcd.setTextFont(7);// 48px 7seg
-  M5.Lcd.setCursor(COL0_X, ROW1_Y + 26 + ROW_MARGIN);
-	M5.Lcd.setTextSize(1);
-  M5.Lcd.printf("%4.0f\r\n", ccpm.GetValue());
+  sprite.setTextFont(7);// 48px 7seg
+  sprite.setCursor(COL0_X, ROW1_Y + 26 + ROW_MARGIN);
+	sprite.setTextSize(1);
+  sprite.printf("%4.0f\r\n", ccpm.GetValue());
 
   // grid row1.col1
-  M5.Lcd.setTextFont(4);// 26px ascii
-  M5.Lcd.setCursor(COL1_X, ROW1_Y + ROW_MARGIN);
-	M5.Lcd.setTextSize(1);
+  sprite.setTextFont(4);// 26px ascii
+  sprite.setCursor(COL1_X, ROW1_Y + ROW_MARGIN);
+	sprite.setTextSize(1);
   if (discomfortIndex.GetValue() < 55)
   {
-    M5.Lcd.printf("((>_<))  \r\n");
+    sprite.printf("((>_<))  \r\n");
   }
   else if(discomfortIndex.GetValue() < 75)
   {
-    M5.Lcd.printf("(^_^)    \r\n");
+    sprite.printf("(^_^)    \r\n");
   }
   else
   {
-    M5.Lcd.printf("(x_x;)   \r\n");
+    sprite.printf("(x_x;)   \r\n");
   }
 
-  M5.Lcd.setTextFont(7);// 48px 7seg
-  M5.Lcd.setCursor(COL1_X, ROW1_Y + 26 + ROW_MARGIN);
-	M5.Lcd.setTextSize(1);
-  M5.Lcd.printf("%d\r\n", discomfortIndex.GetValue());
+  sprite.setTextFont(7);// 48px 7seg
+  sprite.setCursor(COL1_X, ROW1_Y + 26 + ROW_MARGIN);
+	sprite.setTextSize(1);
+  sprite.printf("%d\r\n", discomfortIndex.GetValue());
 
   // grid row2,col0
-  M5.Lcd.setTextFont(4);// 26px ascii
-  M5.Lcd.setCursor(COL0_X, ROW2_Y + ROW_MARGIN);
-	M5.Lcd.setTextSize(1);
-  M5.Lcd.printf("%s [%s]:\r\n", temperature.GetTitle(), temperature.GetUnit());
+  sprite.setTextFont(4);// 26px ascii
+  sprite.setCursor(COL0_X, ROW2_Y + ROW_MARGIN);
+	sprite.setTextSize(1);
+  sprite.printf("%s [%s]:\r\n", temperature.GetTitle(), temperature.GetUnit());
 
-  M5.Lcd.setTextFont(7);// 48px 7seg
-  M5.Lcd.setCursor(COL0_X, ROW2_Y + 26 + ROW_MARGIN);
-	M5.Lcd.setTextSize(1);
-  M5.Lcd.printf("%2.1f\r\n", temperature.GetValue());
+  sprite.setTextFont(7);// 48px 7seg
+  sprite.setCursor(COL0_X, ROW2_Y + 26 + ROW_MARGIN);
+	sprite.setTextSize(1);
+  sprite.printf("%2.1f\r\n", temperature.GetValue());
 
   // grid row2,col1
-  M5.Lcd.setTextFont(4);// 26px ascii
-  M5.Lcd.setCursor(COL1_X, ROW2_Y + ROW_MARGIN);
-	M5.Lcd.setTextSize(1);
-  M5.Lcd.printf("%s [%s]:\r\n", humidity.GetTitle(), humidity.GetUnit());
+  sprite.setTextFont(4);// 26px ascii
+  sprite.setCursor(COL1_X, ROW2_Y + ROW_MARGIN);
+	sprite.setTextSize(1);
+  sprite.printf("%s [%s]:\r\n", humidity.GetTitle(), humidity.GetUnit());
 
-  M5.Lcd.setTextFont(7);// 48px 7seg
-  M5.Lcd.setCursor(COL1_X, ROW2_Y + 26 + ROW_MARGIN);
-	M5.Lcd.setTextSize(1);
-  M5.Lcd.printf("%2.1f\r\n", humidity.GetValue());
+  sprite.setTextFont(7);// 48px 7seg
+  sprite.setCursor(COL1_X, ROW2_Y + 26 + ROW_MARGIN);
+	sprite.setTextSize(1);
+  sprite.printf("%2.1f\r\n", humidity.GetValue());
+
+  sprite.pushSprite(0, 0);
 
 	vTaskDelay(200);
 }
