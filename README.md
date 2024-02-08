@@ -1,10 +1,10 @@
 # What' this  
 Ambient Monitoring with M5Stack:
 
--CO2 Concentration  
--Discomfort Index  
--Temperature  
--Humidity  
+- CO2 Concentration  
+- Discomfort Index  
+- Temperature  
+- Humidity  
 
 ![img1](./docs/photoimage.jpg)
 
