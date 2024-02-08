@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include <M5Core2.h>
+#include <M5Unified.h>
 #include <Wire.h>
 #include <WiFi.h>
 #include <math.h>
@@ -10,6 +10,7 @@
 #include "time.h"
 #include "Measurement.h"
 #include "DiscomfortIndex.h"
+#include <M5GFX.h>
 
 #define ROW_MARGIN  8
 #define ROW0_Y      0
@@ -21,8 +22,8 @@
 WiFiClient client;
 
 MyDateTime dt;
-
-TFT_eSprite sprite(&M5.Lcd);
+M5GFX display;
+M5Canvas canvas(&display);
 
 // view model
 Measurement temperature("Temp.", "C");
@@ -60,17 +61,19 @@ void acquisitionTask(void* arg)
 void setup()
 {
 	// put your setup code here, to run once:
-	M5.begin(115200);
-  // M5.Lcd.setTextFont(2);// 16px ascii
-	// M5.Lcd.setTextSize(3);
-	M5.Lcd.setBrightness(64);
-  sprite.createSprite(M5.Lcd.width(), M5.Lcd.height());
+	M5.begin();
+  Serial.begin(115200);
+  display.init();
+  // display.setTextFont(2);// 16px ascii
+	// display.setTextSize(3);
+	display.setBrightness(64);
+  canvas.createSprite(display.width(), display.height());
 
 	disableCore0WDT();
 	disableCore1WDT();
 
-	// M5.Lcd.sleep();
-	// M5.Lcd.setBrightness(0);
+	// display.sleep();
+	// display.setBrightness(0);
 	// Serial.println("Hello World!");
 
 	WiFi.begin(ssid, pass);
@@ -78,16 +81,16 @@ void setup()
   {
 		// TODO: timeout
 		delay(500);
-		M5.Lcd.print(".");
+		display.print(".");
     	// Serial.println(".");
 	}
-	M5.Lcd.println("WiFi connected");
+	display.println("WiFi connected");
 	// Serial.println("WiFi connected");
 
   dt.Initialize();
 
 	delay(1000);
-	M5.Lcd.clear();
+	display.clear();
 
   xTaskCreatePinnedToCore(acquisitionTask, "Task0", 4096, NULL, 1, NULL, 1);
 }
@@ -96,75 +99,77 @@ void loop()
 {
   dt.GetLocalTime();
 
-  sprite.fillScreen(BLACK);
+  canvas.fillScreen(BLACK);
 
   // grid row0,col0
-  sprite.setTextFont(7);// 48px 7seg
-  sprite.setCursor(COL0_X, ROW0_Y);
-	sprite.setTextSize(1);
-  sprite.printf("%02d:%02d\r\n" ,dt.dt_hour ,dt.dt_min);
+  canvas.setTextFont(7);// 48px 7seg
+  canvas.setCursor(COL0_X, ROW0_Y);
+	canvas.setTextSize(1);
+  canvas.printf("%02d:%02d\r\n" ,dt.dt_hour ,dt.dt_min);
 
-  // sprite.setTextFont(7);// 48px 7seg
-  // sprite.setCursor(0, 0);
-	// sprite.setTextSize(1);
-  // sprite.printf("%02d/%02d\r\n" ,dt.dt_month ,dt.dt_day);
+  // canvas.setTextFont(7);// 48px 7seg
+  // canvas.setCursor(0, 0);
+	// canvas.setTextSize(1);
+  // canvas.printf("%02d/%02d\r\n" ,dt.dt_month ,dt.dt_day);
 
   // grid row1,col0
-  sprite.setTextFont(4);// 26px ascii
-  sprite.setCursor(COL0_X, ROW1_Y + ROW_MARGIN);
-	sprite.setTextSize(1);
-  sprite.printf("%s [%s]:\r\n", ccpm.GetTitle(), ccpm.GetUnit());
+  canvas.setTextFont(4);// 26px ascii
+  canvas.setCursor(COL0_X, ROW1_Y + ROW_MARGIN);
+	canvas.setTextSize(1);
+  canvas.printf("%s [%s]:\r\n", ccpm.GetTitle(), ccpm.GetUnit());
 
-  sprite.setTextFont(7);// 48px 7seg
-  sprite.setCursor(COL0_X, ROW1_Y + 26 + ROW_MARGIN);
-	sprite.setTextSize(1);
-  sprite.printf("%4.0f\r\n", ccpm.GetValue());
+  canvas.setTextFont(7);// 48px 7seg
+  canvas.setCursor(COL0_X, ROW1_Y + 26 + ROW_MARGIN);
+	canvas.setTextSize(1);
+  canvas.printf("%4.0f\r\n", ccpm.GetValue());
 
   // grid row1.col1
-  sprite.setTextFont(4);// 26px ascii
-  sprite.setCursor(COL1_X, ROW1_Y + ROW_MARGIN);
-	sprite.setTextSize(1);
+  canvas.setTextFont(4);// 26px ascii
+  canvas.setCursor(COL1_X, ROW1_Y + ROW_MARGIN);
+	canvas.setTextSize(1);
   if (discomfortIndex.GetValue() < 55)
   {
-    sprite.printf("((>_<))  \r\n");
+    canvas.printf("((>_<))  \r\n");
   }
   else if(discomfortIndex.GetValue() < 75)
   {
-    sprite.printf("(^_^)    \r\n");
+    canvas.printf("(^_^)    \r\n");
   }
   else
   {
-    sprite.printf("(x_x;)   \r\n");
+    canvas.printf("(x_x;)   \r\n");
   }
 
-  sprite.setTextFont(7);// 48px 7seg
-  sprite.setCursor(COL1_X, ROW1_Y + 26 + ROW_MARGIN);
-	sprite.setTextSize(1);
-  sprite.printf("%d\r\n", discomfortIndex.GetValue());
+  canvas.setTextFont(7);// 48px 7seg
+  canvas.setCursor(COL1_X, ROW1_Y + 26 + ROW_MARGIN);
+	canvas.setTextSize(1);
+  canvas.printf("%d\r\n", discomfortIndex.GetValue());
 
   // grid row2,col0
-  sprite.setTextFont(4);// 26px ascii
-  sprite.setCursor(COL0_X, ROW2_Y + ROW_MARGIN);
-	sprite.setTextSize(1);
-  sprite.printf("%s [%s]:\r\n", temperature.GetTitle(), temperature.GetUnit());
+  canvas.setTextFont(4);// 26px ascii
+  canvas.setCursor(COL0_X, ROW2_Y + ROW_MARGIN);
+	canvas.setTextSize(1);
+  canvas.printf("%s [%s]:\r\n", temperature.GetTitle(), temperature.GetUnit());
 
-  sprite.setTextFont(7);// 48px 7seg
-  sprite.setCursor(COL0_X, ROW2_Y + 26 + ROW_MARGIN);
-	sprite.setTextSize(1);
-  sprite.printf("%2.1f\r\n", temperature.GetValue());
+  canvas.setTextFont(7);// 48px 7seg
+  canvas.setCursor(COL0_X, ROW2_Y + 26 + ROW_MARGIN);
+	canvas.setTextSize(1);
+  canvas.printf("%2.1f\r\n", temperature.GetValue());
 
   // grid row2,col1
-  sprite.setTextFont(4);// 26px ascii
-  sprite.setCursor(COL1_X, ROW2_Y + ROW_MARGIN);
-	sprite.setTextSize(1);
-  sprite.printf("%s [%s]:\r\n", humidity.GetTitle(), humidity.GetUnit());
+  canvas.setTextFont(4);// 26px ascii
+  canvas.setCursor(COL1_X, ROW2_Y + ROW_MARGIN);
+	canvas.setTextSize(1);
+  canvas.printf("%s [%s]:\r\n", humidity.GetTitle(), humidity.GetUnit());
 
-  sprite.setTextFont(7);// 48px 7seg
-  sprite.setCursor(COL1_X, ROW2_Y + 26 + ROW_MARGIN);
-	sprite.setTextSize(1);
-  sprite.printf("%2.1f\r\n", humidity.GetValue());
-
-  sprite.pushSprite(0, 0);
+  canvas.setTextFont(7);// 48px 7seg
+  canvas.setCursor(COL1_X, ROW2_Y + 26 + ROW_MARGIN);
+	canvas.setTextSize(1);
+  canvas.printf("%2.1f\r\n", humidity.GetValue());
+  
+  display.startWrite(); 
+  canvas.pushSprite(0, 0);
+  display.endWrite(); 
 
 	vTaskDelay(200);
 }

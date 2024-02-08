@@ -2,7 +2,7 @@
 #define __MYDATETIME_H
 
 #include <Arduino.h>
-#include <M5Core2.h>
+#include <M5Unified.h>
 #include "time.h"
 
 class MyDateTime{

@@ -3,7 +3,7 @@
 
 // #include "Wire.h"
 #include <Arduino.h>
-#include <M5Core2.h>
+#include <M5Unified.h>
 
 class MHZ19C{
 public:
