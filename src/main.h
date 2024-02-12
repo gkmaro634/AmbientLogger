@@ -26,12 +26,15 @@
 
 #define UART_BAUDRATE   115200
 
+#define WIFI_CONNECT_TIMEOUT_MS    10000
 #define ACQ_INTERVAL_MS     5000
 #define PRINT_INTERVAL_MS   5000
 
 #define MHZ19C_PWM_PIN  36
 
 // Function Prototypes
+void connectWifiTask(void* arg);
+void checkWifiStateTask(void* arg);
 void acquisitionTask(void* arg);
 void printTask(void* arg);
 

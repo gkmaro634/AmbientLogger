@@ -9,6 +9,7 @@ public:
   MyDateTime();
   void Initialize();
   void GetLocalTime();
+  bool initialized = false;
   int dt_sec = 0;
   int dt_min = 0;
   int dt_hour = 0;

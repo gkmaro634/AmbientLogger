@@ -13,10 +13,15 @@ void MyDateTime::Initialize()
   //init and get the time
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);  
   GetLocalTime();
+  initialized = true;
 }
 
 void MyDateTime::GetLocalTime()
 {
+  if (initialized == false){
+    return;
+  }
+
   getLocalTime(&_timeinfo);
   dt_sec = _timeinfo.tm_sec;
   dt_min = _timeinfo.tm_min;
