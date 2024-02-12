@@ -15,6 +15,8 @@ DiscomfortIndex discomfortIndex;
 SHT3X sht30;
 MHZ19C mhz19c;
 
+TimerHandle_t acqTimer;
+
 void setup()
 {
 	// put your setup code here, to run once:
@@ -49,7 +51,12 @@ void setup()
 	delay(1000);
 	display.clear();
 
-  xTaskCreatePinnedToCore(acquisitionTask, "Task0", 4096, NULL, 1, NULL, 1);
+  Wire.begin();
+  mhz19c = MHZ19C(36);
+
+  acqTimer = xTimerCreate("acqTask", pdMS_TO_TICKS(5000), pdTRUE, NULL, acquisitionTask);
+  xTimerStart(acqTimer, 0);
+  // xTaskCreatePinnedToCore(acquisitionTask, "Task0", 4096, NULL, 1, NULL, 1);
 }
 
 void loop()
@@ -133,11 +140,6 @@ void loop()
 
 void acquisitionTask(void* arg)
 {
-  Wire.begin();
-  mhz19c = MHZ19C(36);
-
-  while (1)
-  {
     if(mhz19c.get() == 0)
     {
       ccpm.SetValue(mhz19c.ccpm);
@@ -149,9 +151,6 @@ void acquisitionTask(void* arg)
       humidity.SetValue(sht30.humidity);
       discomfortIndex.Update(temperature.GetValue(), humidity.GetValue());
     }
-
-    vTaskDelay(100);
-  }
 }
 
 
