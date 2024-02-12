@@ -1,62 +1,19 @@
-#include <Arduino.h>
-#include <M5Unified.h>
-#include <Wire.h>
-#include <WiFi.h>
-#include <math.h>
-#include "secret.h"
-#include "SHT3X.h"
-#include "MHZ19C.h"
-#include "MyDateTime.h"
-#include "time.h"
-#include "Measurement.h"
-#include "DiscomfortIndex.h"
-#include <M5GFX.h>
+#include "main.h"
 
-#define ROW_MARGIN  8
-#define ROW0_Y      0
-#define ROW1_Y      48
-#define ROW2_Y      144
-#define COL0_X      0
-#define COL1_X      160
-
+// valiables
 WiFiClient client;
 
 MyDateTime dt;
 M5GFX display;
 M5Canvas canvas(&display);
 
-// view model
 Measurement temperature("Temp.", "C");
 Measurement humidity("Hum.", "%");
 Measurement ccpm("CO2", "ppm");
 DiscomfortIndex discomfortIndex;
 
-// device
 SHT3X sht30;
 MHZ19C mhz19c;
-
-void acquisitionTask(void* arg)
-{
-  Wire.begin();
-  mhz19c = MHZ19C(36);
-
-  while (1)
-  {
-    if(mhz19c.get() == 0)
-    {
-      ccpm.SetValue(mhz19c.ccpm);
-    }
-
-    if(sht30.get() == 0)
-    {
-      temperature.SetValue(sht30.cTemp);
-      humidity.SetValue(sht30.humidity);
-      discomfortIndex.Update(temperature.GetValue(), humidity.GetValue());
-    }
-
-    vTaskDelay(100);
-  }
-}
 
 void setup()
 {
@@ -172,6 +129,29 @@ void loop()
   display.endWrite(); 
 
 	vTaskDelay(200);
+}
+
+void acquisitionTask(void* arg)
+{
+  Wire.begin();
+  mhz19c = MHZ19C(36);
+
+  while (1)
+  {
+    if(mhz19c.get() == 0)
+    {
+      ccpm.SetValue(mhz19c.ccpm);
+    }
+
+    if(sht30.get() == 0)
+    {
+      temperature.SetValue(sht30.cTemp);
+      humidity.SetValue(sht30.humidity);
+      discomfortIndex.Update(temperature.GetValue(), humidity.GetValue());
+    }
+
+    vTaskDelay(100);
+  }
 }
 
 

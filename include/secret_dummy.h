@@ -1,5 +1,5 @@
-#ifndef __SECRET_DUMMY_H
-#define __SECRET_DUMMY_H
+#ifndef SECRET_DUMMY_H
+#define SECRET_DUMMY_H
 
 // Rename this file to "secret.h" and modify below variables.
 

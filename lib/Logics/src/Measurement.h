@@ -1,7 +1,7 @@
-#ifndef __MEASUREMENT_H
-#define __MEASUREMENT_H
+#ifndef MEASUREMENT_H
+#define MEASUREMENT_H
 
-class Measurement{
+class Measurement {
 public:
   Measurement(const char* title, const char* unit);
   void SetValue(float v);
@@ -13,8 +13,7 @@ private:
   const char* _title;
   const char* _unit;
   float _value = 0.0;
-
-//   struct tm _timeinfo;
+  // struct tm _timeinfo;
 };
 
-#endif
+#endif /* MEASUREMENT_H */
