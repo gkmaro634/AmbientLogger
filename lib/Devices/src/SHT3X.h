@@ -1,27 +1,25 @@
-#ifndef __SHT3X_H
-#define __SHT3X_H
+#ifndef SHT3X_H
+#define SHT3X_H
 
+#include <Arduino.h>
+#include <Wire.h>
 
-#if ARDUINO >= 100
- #include "Arduino.h"
-#else
- #include "WProgram.h"
-#endif
-
-#include "Wire.h"
-
-class SHT3X{
+class SHT3X {
 public:
-  SHT3X(uint8_t address=0x44);
+  // Constructor
+  SHT3X(uint8_t address = 0x44);
+
+  // Public methods
   byte get(void);
-  float cTemp=0;
-  float fTemp=0;
-  float humidity=0;
+
+  // Public variables
+  float cTemp = 0;
+  float fTemp = 0;
+  float humidity = 0;
 
 private:
+  // Private members
   uint8_t _address;
-
 };
 
-
-#endif
+#endif /* SHT3X_H */

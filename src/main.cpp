@@ -1,71 +1,29 @@
-#include <Arduino.h>
-#include <M5Unified.h>
-#include <Wire.h>
-#include <WiFi.h>
-#include <math.h>
-#include "secret.h"
-#include "SHT3X.h"
-#include "MHZ19C.h"
-#include "MyDateTime.h"
-#include "time.h"
-#include "Measurement.h"
-#include "DiscomfortIndex.h"
-#include <M5GFX.h>
+#include "main.h"
 
-#define ROW_MARGIN  8
-#define ROW0_Y      0
-#define ROW1_Y      48
-#define ROW2_Y      144
-#define COL0_X      0
-#define COL1_X      160
-
+// valiables
 WiFiClient client;
 
 MyDateTime dt;
 M5GFX display;
 M5Canvas canvas(&display);
 
-// view model
 Measurement temperature("Temp.", "C");
 Measurement humidity("Hum.", "%");
 Measurement ccpm("CO2", "ppm");
 DiscomfortIndex discomfortIndex;
 
-// device
 SHT3X sht30;
 MHZ19C mhz19c;
 
-void acquisitionTask(void* arg)
-{
-  Wire.begin();
-  mhz19c = MHZ19C(36);
-
-  while (1)
-  {
-    if(mhz19c.get() == 0)
-    {
-      ccpm.SetValue(mhz19c.ccpm);
-    }
-
-    if(sht30.get() == 0)
-    {
-      temperature.SetValue(sht30.cTemp);
-      humidity.SetValue(sht30.humidity);
-      discomfortIndex.Update(temperature.GetValue(), humidity.GetValue());
-    }
-
-    vTaskDelay(100);
-  }
-}
+TimerHandle_t acqTimer;
+TimerHandle_t printTimer;
 
 void setup()
 {
 	// put your setup code here, to run once:
 	M5.begin();
-  Serial.begin(115200);
+  Serial.begin(UART_BAUDRATE);
   display.init();
-  // display.setTextFont(2);// 16px ascii
-	// display.setTextSize(3);
 	display.setBrightness(64);
   canvas.createSprite(display.width(), display.height());
 
@@ -89,14 +47,44 @@ void setup()
 
   dt.Initialize();
 
-	delay(1000);
+	// delay(1000);
 	display.clear();
 
-  xTaskCreatePinnedToCore(acquisitionTask, "Task0", 4096, NULL, 1, NULL, 1);
+  Wire.begin();
+  mhz19c = MHZ19C(MHZ19C_PWM_PIN);
+
+  acquisitionTask(NULL);
+  printTask(NULL);
+  
+  // xTaskCreatePinnedToCore(acquisitionTask, "Task0", 4096, NULL, 1, NULL, 1);
+  acqTimer = xTimerCreate("acqTask", pdMS_TO_TICKS(ACQ_INTERVAL_MS), pdTRUE, NULL, acquisitionTask);
+  printTimer = xTimerCreate("printTask", pdMS_TO_TICKS(PRINT_INTERVAL_MS), pdTRUE, NULL, printTask);
+
+  xTimerStart(acqTimer, 0);
+  xTimerStart(printTimer, 0);
 }
 
 void loop()
 {
+  ;
+}
+
+void acquisitionTask(void* arg)
+{
+    if(mhz19c.get() == 0)
+    {
+      ccpm.SetValue(mhz19c.ccpm);
+    }
+
+    if(sht30.get() == 0)
+    {
+      temperature.SetValue(sht30.cTemp);
+      humidity.SetValue(sht30.humidity);
+      discomfortIndex.Update(temperature.GetValue(), humidity.GetValue());
+    }
+}
+
+void printTask(void *arg){
   dt.GetLocalTime();
 
   canvas.fillScreen(BLACK);
@@ -170,8 +158,4 @@ void loop()
   display.startWrite(); 
   canvas.pushSprite(0, 0);
   display.endWrite(); 
-
-	vTaskDelay(200);
 }
-
-

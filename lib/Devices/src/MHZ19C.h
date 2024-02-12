@@ -1,24 +1,28 @@
-#ifndef __MHZ19C_H
-#define __MHZ19C_H
+#ifndef MHZ19C_H
+#define MHZ19C_H
 
-// #include "Wire.h"
 #include <Arduino.h>
 #include <M5Unified.h>
 
-class MHZ19C{
+class MHZ19C {
 public:
-  MHZ19C(int pwmPin=36);
+  // Constructor
+  MHZ19C(int pwmPin = 36);
+
+  // Public methods
   byte get(void);
-  float ccpm;
-  // float cTemp=0;
-  // float fTemp=0;
-  // float humidity=0;
+
+  // Public variables
+  float ccpm; // CO2 concentration per million
+  // float cTemp = 0; // Celsius temperature
+  // float fTemp = 0; // Fahrenheit temperature
+  // float humidity = 0; // Humidity
 
 private:
-  int _pwmPin;
-  unsigned int _outputHighDuration;
-  // uint8_t _address;
+  // Private members
+  int _pwmPin; // PWM pin number
+  unsigned int _outputHighDuration; // Duration of output high signal
+  // uint8_t _address; // Address (if needed)
 };
 
-
-#endif
+#endif /* MHZ19C_H */
