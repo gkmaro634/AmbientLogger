@@ -24,7 +24,15 @@
 #define COL0_X      0
 #define COL1_X      160
 
+#define UART_BAUDRATE   115200
+
+#define ACQ_INTERVAL_MS     5000
+#define PRINT_INTERVAL_MS   5000
+
+#define MHZ19C_PWM_PIN  36
+
 // Function Prototypes
 void acquisitionTask(void* arg);
+void printTask(void* arg);
 
 #endif /* MAIN_H */
