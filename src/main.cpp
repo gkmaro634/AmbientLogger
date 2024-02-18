@@ -20,6 +20,9 @@ DiscomfortIndex discomfortIndex;
 SHT3X sht30;
 MHZ19C mhz19c;
 
+bool hasPressed;
+ModeType mode = INDICATOR;
+
 TaskHandle_t handleWifiConnectTask;
 
 TimerHandle_t handleCheckWifiStateTimer;
@@ -66,7 +69,26 @@ void setup()
 
 void loop()
 {
-  vTaskDelete(NULL);
+  delay(50);
+  M5.update();
+  auto detail = M5.Touch.getDetail();
+
+  if (hasPressed == true){
+    if (detail.isReleased()){
+      hasPressed = false;
+      Serial.println("Touch detected.");
+      if (mode == INDICATOR){
+        mode = WAVE_CHART;
+      }
+      else{
+        mode = INDICATOR;
+      }
+    }
+  }
+  else{
+    hasPressed = detail.isPressed();
+  }
+  // vTaskDelete(NULL);
 }
 
 void connectWifiTask(void* arg){
@@ -136,7 +158,19 @@ void acquisitionTask(void* arg)
     }
 }
 
+const char* modeToString(ModeType mode) {
+    switch (mode) {
+        case INDICATOR:
+            return "INDICATOR";
+        case WAVE_CHART:
+            return "WAVE_CHART";
+        default:
+            return "UNKNOWN";
+    }
+}
+
 void printTask(void *arg){
+  Serial.printf("mode = %s\r\n", modeToString(mode));
   myDateTime.GetLocalTime();
 
   // grid row0,col0

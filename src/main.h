@@ -44,4 +44,10 @@ void checkWifiStateTask(void* arg);
 void acquisitionTask(void* arg);
 void printTask(void* arg);
 
+// typedef
+typedef enum {
+    INDICATOR = 1,
+    WAVE_CHART,
+} ModeType;
+
 #endif /* MAIN_H */
