@@ -15,7 +15,6 @@ public:
 private:
   const char* _title;
   const char* _unit;
-  float _value = 0.0;
   QueueHandle_t _xQueue;
 
   // struct tm _timeinfo;
