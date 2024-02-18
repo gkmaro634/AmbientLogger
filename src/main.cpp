@@ -171,26 +171,7 @@ void acquisitionTask(void *arg)
   }
 }
 
-void printTask(void *arg)
-{
-  while (true)
-  {
-    delay(PRINT_INTERVAL_MS);
-
-    myDateTime.GetLocalTime();
-
-    // grid row0,col0
-    headerCanvas.fillScreen(BLACK);
-    headerCanvas.setTextFont(7); // 48px 7seg
-    headerCanvas.setCursor(0, 0);
-    headerCanvas.setTextSize(1);
-    headerCanvas.printf("%02d:%02d\r\n", myDateTime.dt_hour, myDateTime.dt_min);
-
-    // canvas.setTextFont(7);// 48px 7seg
-    // canvas.setCursor(0, 0);
-    // canvas.setTextSize(1);
-    // canvas.printf("%02d/%02d\r\n" ,myDateTime.dt_month ,myDateTime.dt_day);
-
+void updateIndicator(){
     // grid row1,col0
     co2Canvas.fillScreen(BLACK);
     co2Canvas.setTextFont(4); // 26px ascii
@@ -263,30 +244,54 @@ void printTask(void *arg)
     {
       humidCanvas.printf("%2.1f\r\n", humidValue);
     }
+}
 
+void updateWaveChart(){
     // grid row1,col1
+    // TODO
     waveChartCanvas.fillScreen(DARKGREY);
+}
 
+void printTask(void *arg)
+{
+  while (true)
+  {
+    delay(PRINT_INTERVAL_MS);
+
+    myDateTime.GetLocalTime();
+
+    // grid row0,col0
+    headerCanvas.fillScreen(BLACK);
+    headerCanvas.setTextFont(7); // 48px 7seg
+    headerCanvas.setCursor(0, 0);
+    headerCanvas.setTextSize(1);
+    headerCanvas.printf("%02d:%02d\r\n", myDateTime.dt_hour, myDateTime.dt_min);
+
+    // canvas.setTextFont(7);// 48px 7seg
+    // canvas.setCursor(0, 0);
+    // canvas.setTextSize(1);
+    // canvas.printf("%02d/%02d\r\n" ,myDateTime.dt_month ,myDateTime.dt_day);
+
+    updateIndicator();
+
+    updateWaveChart();
+
+    display.startWrite();
+    headerCanvas.pushSprite(COL0_X, ROW0_Y);
     if (mode == INDICATOR)
     {
-      display.startWrite();
-
-      headerCanvas.pushSprite(COL0_X, ROW0_Y);
       co2Canvas.pushSprite(COL0_X, ROW1_Y);
       disconfortCanvas.pushSprite(COL1_X, ROW1_Y);
       tempCanvas.pushSprite(COL0_X, ROW2_Y);
       humidCanvas.pushSprite(COL1_X, ROW2_Y);
-      display.endWrite();
     }
     else if (mode == WAVE_CHART)
     {
-      display.startWrite();
-      headerCanvas.pushSprite(COL0_X, ROW0_Y);
       waveChartCanvas.pushSprite(COL0_X, ROW1_Y);
-      display.endWrite();
     }
     else
     {
     }
+    display.endWrite();
   }
 }
