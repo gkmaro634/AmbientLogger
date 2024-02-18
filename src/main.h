@@ -27,8 +27,10 @@
 #define HEADER_HEIGHT   48
 #define BLOCK_HEIGHT    80
 #define LABEL_HEIGHT    26
+#define CHART_HEIGHT   BLOCK_HEIGHT*2+ROW_MARGIN
 #define HEADER_WIDTH    320
 #define BLOCK_WIDTH     160
+#define CHART_WIDTH    320
 
 #define UART_BAUDRATE   115200
 

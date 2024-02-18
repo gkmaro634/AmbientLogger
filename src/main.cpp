@@ -11,6 +11,7 @@ M5Canvas co2Canvas(&display);
 M5Canvas disconfortCanvas(&display);
 M5Canvas tempCanvas(&display);
 M5Canvas humidCanvas(&display);
+M5Canvas waveChartCanvas(&display);
 
 Measurement temperature("Temp.", "C");
 Measurement humidity("Hum.", "%");
@@ -49,6 +50,7 @@ void setup()
   disconfortCanvas.createSprite(BLOCK_WIDTH, BLOCK_HEIGHT);
   tempCanvas.createSprite(BLOCK_WIDTH, BLOCK_HEIGHT);
   humidCanvas.createSprite(BLOCK_WIDTH, BLOCK_HEIGHT);
+  waveChartCanvas.createSprite(CHART_WIDTH, CHART_HEIGHT);
   Serial.println("Display initialized.");
 
 	// Task初期化
@@ -254,12 +256,30 @@ void printTask(void *arg){
   if (humidity.Peek(&humidValue, 100) == 0){
     humidCanvas.printf("%2.1f\r\n", humidValue);
   }
-  
-  display.startWrite(); 
-  headerCanvas.pushSprite(COL0_X, ROW0_Y);
-  co2Canvas.pushSprite(COL0_X, ROW1_Y);
-  disconfortCanvas.pushSprite(COL1_X, ROW1_Y);
-  tempCanvas.pushSprite(COL0_X, ROW2_Y);
-  humidCanvas.pushSprite(COL1_X, ROW2_Y);
-  display.endWrite(); 
+
+  // grid row1,col1
+  waveChartCanvas.fillScreen(DARKGREY);
+
+  if (mode == INDICATOR){
+    waveChartCanvas.fillScreen(BLACK);
+
+    display.startWrite(); 
+    waveChartCanvas.pushSprite(COL0_X, ROW1_Y);
+
+    headerCanvas.pushSprite(COL0_X, ROW0_Y);
+    co2Canvas.pushSprite(COL0_X, ROW1_Y);
+    disconfortCanvas.pushSprite(COL1_X, ROW1_Y);
+    tempCanvas.pushSprite(COL0_X, ROW2_Y);
+    humidCanvas.pushSprite(COL1_X, ROW2_Y);
+    display.endWrite(); 
+  }
+  else if (mode == WAVE_CHART){
+    display.startWrite(); 
+    headerCanvas.pushSprite(COL0_X, ROW0_Y);
+    waveChartCanvas.pushSprite(COL0_X, ROW1_Y);
+    display.endWrite(); 
+  }
+  else{
+
+  }
 }
