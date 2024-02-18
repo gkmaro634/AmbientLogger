@@ -5,7 +5,13 @@ WiFiClient client;
 
 MyDateTime myDateTime;
 M5GFX display;
-M5Canvas canvas(&display);
+// M5Canvas canvas(&display);
+
+M5Canvas headerCanvas(&display);
+M5Canvas co2Canvas(&display);
+M5Canvas disconfortCanvas(&display);
+M5Canvas tempCanvas(&display);
+M5Canvas humidCanvas(&display);
 
 Measurement temperature("Temp.", "C");
 Measurement humidity("Hum.", "%");
@@ -35,7 +41,11 @@ void setup()
   // 画面初期化
   display.init();
 	display.setBrightness(64);
-  canvas.createSprite(display.width(), display.height());
+  headerCanvas.createSprite(HEADER_WIDTH, HEADER_HEIGHT);
+  co2Canvas.createSprite(BLOCK_WIDTH, BLOCK_HEIGHT);
+  disconfortCanvas.createSprite(BLOCK_WIDTH, BLOCK_HEIGHT);
+  tempCanvas.createSprite(BLOCK_WIDTH, BLOCK_HEIGHT);
+  humidCanvas.createSprite(BLOCK_WIDTH, BLOCK_HEIGHT);
 
 	// Task初期化
   disableCore0WDT();
@@ -76,6 +86,7 @@ void connectWifiTask(void* arg){
   xTimerStop(handleCheckWifiStateTimer, 0);
 
   // メイン処理初回実行
+  display.fillScreen(BLACK);
   acquisitionTask(NULL);
   printTask(NULL);
 
@@ -115,13 +126,12 @@ void acquisitionTask(void* arg)
 void printTask(void *arg){
   myDateTime.GetLocalTime();
 
-  canvas.fillScreen(BLACK);
-
   // grid row0,col0
-  canvas.setTextFont(7);// 48px 7seg
-  canvas.setCursor(COL0_X, ROW0_Y);
-	canvas.setTextSize(1);
-  canvas.printf("%02d:%02d\r\n" ,myDateTime.dt_hour ,myDateTime.dt_min);
+  headerCanvas.fillScreen(BLACK);
+  headerCanvas.setTextFont(7);// 48px 7seg
+  headerCanvas.setCursor(0, 0);
+	headerCanvas.setTextSize(1);
+  headerCanvas.printf("%02d:%02d\r\n" ,myDateTime.dt_hour ,myDateTime.dt_min);
 
   // canvas.setTextFont(7);// 48px 7seg
   // canvas.setCursor(0, 0);
@@ -129,61 +139,70 @@ void printTask(void *arg){
   // canvas.printf("%02d/%02d\r\n" ,myDateTime.dt_month ,myDateTime.dt_day);
 
   // grid row1,col0
-  canvas.setTextFont(4);// 26px ascii
-  canvas.setCursor(COL0_X, ROW1_Y + ROW_MARGIN);
-	canvas.setTextSize(1);
-  canvas.printf("%s [%s]:\r\n", ccpm.GetTitle(), ccpm.GetUnit());
+  co2Canvas.fillScreen(BLACK);
+  co2Canvas.setTextFont(4);// 26px ascii
+  co2Canvas.setCursor(0, 0);
+	co2Canvas.setTextSize(1);
+  co2Canvas.printf("%s [%s]:\r\n", ccpm.GetTitle(), ccpm.GetUnit());
 
-  canvas.setTextFont(7);// 48px 7seg
-  canvas.setCursor(COL0_X, ROW1_Y + 26 + ROW_MARGIN);
-	canvas.setTextSize(1);
-  canvas.printf("%4.0f\r\n", ccpm.GetValue());
+  co2Canvas.setTextFont(7);// 48px 7seg
+  co2Canvas.setCursor(0, LABEL_HEIGHT);
+	co2Canvas.setTextSize(1);
+  co2Canvas.printf("%4.0f\r\n", ccpm.GetValue());
 
   // grid row1.col1
-  canvas.setTextFont(4);// 26px ascii
-  canvas.setCursor(COL1_X, ROW1_Y + ROW_MARGIN);
-	canvas.setTextSize(1);
+  disconfortCanvas.fillScreen(BLACK);
+  disconfortCanvas.setTextFont(4);// 26px ascii
+  disconfortCanvas.setCursor(0, 0);
+	disconfortCanvas.setTextSize(1);
   if (discomfortIndex.GetValue() < 55)
   {
-    canvas.printf("((>_<))  \r\n");
+    disconfortCanvas.printf("((>_<))  \r\n");
   }
   else if(discomfortIndex.GetValue() < 75)
   {
-    canvas.printf("(^_^)    \r\n");
+    disconfortCanvas.printf("(^_^)    \r\n");
   }
   else
   {
-    canvas.printf("(x_x;)   \r\n");
+    disconfortCanvas.printf("(x_x;)   \r\n");
   }
 
-  canvas.setTextFont(7);// 48px 7seg
-  canvas.setCursor(COL1_X, ROW1_Y + 26 + ROW_MARGIN);
-	canvas.setTextSize(1);
-  canvas.printf("%d\r\n", discomfortIndex.GetValue());
+  disconfortCanvas.setTextFont(7);// 48px 7seg
+  disconfortCanvas.setCursor(0, LABEL_HEIGHT);
+	disconfortCanvas.setTextSize(1);
+  disconfortCanvas.printf("%d\r\n", discomfortIndex.GetValue());
 
   // grid row2,col0
-  canvas.setTextFont(4);// 26px ascii
-  canvas.setCursor(COL0_X, ROW2_Y + ROW_MARGIN);
-	canvas.setTextSize(1);
-  canvas.printf("%s [%s]:\r\n", temperature.GetTitle(), temperature.GetUnit());
+  tempCanvas.fillScreen(BLACK);
 
-  canvas.setTextFont(7);// 48px 7seg
-  canvas.setCursor(COL0_X, ROW2_Y + 26 + ROW_MARGIN);
-	canvas.setTextSize(1);
-  canvas.printf("%2.1f\r\n", temperature.GetValue());
+  tempCanvas.setTextFont(4);// 26px ascii
+  tempCanvas.setCursor(0, 0);
+	tempCanvas.setTextSize(1);
+  tempCanvas.printf("%s [%s]:\r\n", temperature.GetTitle(), temperature.GetUnit());
+
+  tempCanvas.setTextFont(7);// 48px 7seg
+  tempCanvas.setCursor(0, LABEL_HEIGHT);
+	tempCanvas.setTextSize(1);
+  tempCanvas.printf("%2.1f\r\n", temperature.GetValue());
 
   // grid row2,col1
-  canvas.setTextFont(4);// 26px ascii
-  canvas.setCursor(COL1_X, ROW2_Y + ROW_MARGIN);
-	canvas.setTextSize(1);
-  canvas.printf("%s [%s]:\r\n", humidity.GetTitle(), humidity.GetUnit());
+  humidCanvas.fillScreen(BLACK);
+  humidCanvas.setTextFont(4);// 26px ascii
+  humidCanvas.setCursor(0, 0);
+	humidCanvas.setTextSize(1);
+  humidCanvas.printf("%s [%s]:\r\n", humidity.GetTitle(), humidity.GetUnit());
 
-  canvas.setTextFont(7);// 48px 7seg
-  canvas.setCursor(COL1_X, ROW2_Y + 26 + ROW_MARGIN);
-	canvas.setTextSize(1);
-  canvas.printf("%2.1f\r\n", humidity.GetValue());
+  humidCanvas.setTextFont(7);// 48px 7seg
+  humidCanvas.setCursor(0, LABEL_HEIGHT);
+	humidCanvas.setTextSize(1);
+  humidCanvas.printf("%2.1f\r\n", humidity.GetValue());
   
   display.startWrite(); 
-  canvas.pushSprite(0, 0);
+  headerCanvas.pushSprite(COL0_X, ROW0_Y);
+  co2Canvas.pushSprite(COL0_X, ROW1_Y);
+  disconfortCanvas.pushSprite(COL1_X, ROW1_Y);
+  tempCanvas.pushSprite(COL0_X, ROW2_Y);
+  humidCanvas.pushSprite(COL1_X, ROW2_Y);
   display.endWrite(); 
 }
