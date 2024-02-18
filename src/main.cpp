@@ -25,18 +25,18 @@ bool hasPressed;
 ModeType mode = INDICATOR;
 
 TaskHandle_t handleWifiConnectTask;
+TaskHandle_t handlePrintTask;
 
 TimerHandle_t handleCheckWifiStateTimer;
 TimerHandle_t handleAcqTimer;
-TimerHandle_t handlePrintTimer;
 
 void setup()
 {
-	// put your setup code here, to run once:
+  // put your setup code here, to run once:
   BaseType_t status;
 
   // デバイス初期化
-	M5.begin();
+  M5.begin();
   Serial.begin(UART_BAUDRATE);
   Wire.begin();
   mhz19c = MHZ19C(MHZ19C_PWM_PIN);
@@ -44,7 +44,7 @@ void setup()
 
   // 画面初期化
   display.init();
-	display.setBrightness(64);
+  display.setBrightness(64);
   headerCanvas.createSprite(HEADER_WIDTH, HEADER_HEIGHT);
   co2Canvas.createSprite(BLOCK_WIDTH, BLOCK_HEIGHT);
   disconfortCanvas.createSprite(BLOCK_WIDTH, BLOCK_HEIGHT);
@@ -53,10 +53,10 @@ void setup()
   waveChartCanvas.createSprite(CHART_WIDTH, CHART_HEIGHT);
   Serial.println("Display initialized.");
 
-	// Task初期化
+  // Task初期化
   disableCore0WDT();
   Serial.println("disableCore0WDT.");
-	disableCore1WDT();
+  disableCore1WDT();
   Serial.println("disableCore1WDT.");
 
   status = xTaskCreatePinnedToCore(connectWifiTask, "wifiTask", 4096, NULL, 1, &handleWifiConnectTask, 1);
@@ -65,7 +65,6 @@ void setup()
 
   handleCheckWifiStateTimer = xTimerCreate("checkWifiStateTask", pdMS_TO_TICKS(500), pdTRUE, NULL, checkWifiStateTask);
   handleAcqTimer = xTimerCreate("acqTask", pdMS_TO_TICKS(ACQ_INTERVAL_MS), pdTRUE, NULL, acquisitionTask);
-  handlePrintTimer = xTimerCreate("printTask", pdMS_TO_TICKS(PRINT_INTERVAL_MS), pdTRUE, NULL, printTask);
   Serial.println("timers Created.");
 }
 
@@ -75,27 +74,33 @@ void loop()
   M5.update();
   auto detail = M5.Touch.getDetail();
 
-  if (hasPressed == true){
-    if (detail.isReleased()){
+  if (hasPressed == true)
+  {
+    if (detail.isReleased())
+    {
       hasPressed = false;
       Serial.println("Touch detected.");
-      if (mode == INDICATOR){
+      if (mode == INDICATOR)
+      {
         mode = WAVE_CHART;
       }
-      else{
+      else
+      {
         mode = INDICATOR;
       }
     }
   }
-  else{
+  else
+  {
     hasPressed = detail.isPressed();
   }
   // vTaskDelete(NULL);
 }
 
-void connectWifiTask(void* arg){
+void connectWifiTask(void *arg)
+{
   // 接続開始
-	WiFi.begin(ssid, pass);
+  WiFi.begin(ssid, pass);
   display.println("Start WiFi connection");
   Serial.println("Start WiFi connection.");
 
@@ -104,13 +109,15 @@ void connectWifiTask(void* arg){
   Serial.println("xTimerStart(handleCheckWifiStateTimer, 0);");
 
   // 通知を待つ
-  if (xTaskNotifyWait(0, 0, NULL, pdMS_TO_TICKS(WIFI_CONNECT_TIMEOUT_MS))){
+  if (xTaskNotifyWait(0, 0, NULL, pdMS_TO_TICKS(WIFI_CONNECT_TIMEOUT_MS)))
+  {
     // 接続完了の場合
     myDateTime.Initialize();
     display.println("WiFi connected");
     Serial.println("WiFi connected");
   }
-  else{
+  else
+  {
     // タイムアウトの場合
     display.println("WiFi connection timed out");
     Serial.println("WiFi connection timed out");
@@ -122,164 +129,164 @@ void connectWifiTask(void* arg){
   // メイン処理初回実行
   display.fillScreen(BLACK);
   acquisitionTask(NULL);
-  printTask(NULL);
   Serial.println("acquisitionTask and printTask launched");
 
   // メイン処理タイマ開始
   xTimerStart(handleAcqTimer, 0);
-  xTimerStart(handlePrintTimer, 0);
-  Serial.println("xTimerStart");
+  Serial.println("xTimerStart(handleAcqTimer, 0)");
+
+  auto status = xTaskCreatePinnedToCore(printTask, "printTask", 8192, NULL, 1, &handlePrintTask, 1);
+  configASSERT(status == pdPASS);
+  Serial.println("printTask Created.");
 
   vTaskDelete(NULL);
   Serial.println("vTaskDelete(NULL)");
 }
 
-void checkWifiStateTask(void* arg){
+void checkWifiStateTask(void *arg)
+{
   // print "."
-	display.print(".");
+  display.print(".");
 
   // 状態を取得し接続完了なら通知する
-  if (WiFi.status() == WL_CONNECTED){
+  if (WiFi.status() == WL_CONNECTED)
+  {
     // 通知
     xTaskNotifyGive(handleWifiConnectTask);
   }
 }
 
-void acquisitionTask(void* arg)
+void acquisitionTask(void *arg)
 {
-    if(mhz19c.get() == 0)
-    {
-      ccpm.Enqueue(mhz19c.ccpm);
-    }
+  if (mhz19c.get() == 0)
+  {
+    ccpm.Enqueue(mhz19c.ccpm);
+  }
 
-    if(sht30.get() == 0)
-    {
-      temperature.Enqueue(sht30.cTemp);
-      humidity.Enqueue(sht30.humidity);
-      discomfortIndex.Update(sht30.cTemp, sht30.humidity);
-    }
+  if (sht30.get() == 0)
+  {
+    temperature.Enqueue(sht30.cTemp);
+    humidity.Enqueue(sht30.humidity);
+    discomfortIndex.Update(sht30.cTemp, sht30.humidity);
+  }
 }
 
-const char* modeToString(ModeType mode) {
-    switch (mode) {
-        case INDICATOR:
-            return "INDICATOR";
-        case WAVE_CHART:
-            return "WAVE_CHART";
-        default:
-            return "UNKNOWN";
+void printTask(void *arg)
+{
+  while (true)
+  {
+    delay(PRINT_INTERVAL_MS);
+
+    myDateTime.GetLocalTime();
+
+    // grid row0,col0
+    headerCanvas.fillScreen(BLACK);
+    headerCanvas.setTextFont(7); // 48px 7seg
+    headerCanvas.setCursor(0, 0);
+    headerCanvas.setTextSize(1);
+    headerCanvas.printf("%02d:%02d\r\n", myDateTime.dt_hour, myDateTime.dt_min);
+
+    // canvas.setTextFont(7);// 48px 7seg
+    // canvas.setCursor(0, 0);
+    // canvas.setTextSize(1);
+    // canvas.printf("%02d/%02d\r\n" ,myDateTime.dt_month ,myDateTime.dt_day);
+
+    // grid row1,col0
+    co2Canvas.fillScreen(BLACK);
+    co2Canvas.setTextFont(4); // 26px ascii
+    co2Canvas.setCursor(0, 0);
+    co2Canvas.setTextSize(1);
+    co2Canvas.printf("%s [%s]:\r\n", ccpm.GetTitle(), ccpm.GetUnit());
+
+    co2Canvas.setTextFont(7); // 48px 7seg
+    co2Canvas.setCursor(0, LABEL_HEIGHT);
+    co2Canvas.setTextSize(1);
+
+    float ccpmValue; // = 1.0;
+    if (ccpm.Peek(&ccpmValue, 100) == 0)
+    {
+      co2Canvas.printf("%4.0f\r\n", ccpmValue);
     }
-}
 
-void printTask(void *arg){
-  Serial.printf("mode = %s\r\n", modeToString(mode));
-  myDateTime.GetLocalTime();
+    // grid row1.col1
+    disconfortCanvas.fillScreen(BLACK);
+    disconfortCanvas.setTextFont(4); // 26px ascii
+    disconfortCanvas.setCursor(0, 0);
+    disconfortCanvas.setTextSize(1);
+    if (discomfortIndex.GetValue() < 55)
+    {
+      disconfortCanvas.printf("((>_<))  \r\n");
+    }
+    else if (discomfortIndex.GetValue() < 75)
+    {
+      disconfortCanvas.printf("(^_^)    \r\n");
+    }
+    else
+    {
+      disconfortCanvas.printf("(x_x;)   \r\n");
+    }
 
-  // grid row0,col0
-  headerCanvas.fillScreen(BLACK);
-  headerCanvas.setTextFont(7);// 48px 7seg
-  headerCanvas.setCursor(0, 0);
-	headerCanvas.setTextSize(1);
-  headerCanvas.printf("%02d:%02d\r\n" ,myDateTime.dt_hour ,myDateTime.dt_min);
+    disconfortCanvas.setTextFont(7); // 48px 7seg
+    disconfortCanvas.setCursor(0, LABEL_HEIGHT);
+    disconfortCanvas.setTextSize(1);
+    disconfortCanvas.printf("%d\r\n", discomfortIndex.GetValue());
 
-  // canvas.setTextFont(7);// 48px 7seg
-  // canvas.setCursor(0, 0);
-	// canvas.setTextSize(1);
-  // canvas.printf("%02d/%02d\r\n" ,myDateTime.dt_month ,myDateTime.dt_day);
+    // grid row2,col0
+    tempCanvas.fillScreen(BLACK);
 
-  // grid row1,col0
-  co2Canvas.fillScreen(BLACK);
-  co2Canvas.setTextFont(4);// 26px ascii
-  co2Canvas.setCursor(0, 0);
-	co2Canvas.setTextSize(1);
-  co2Canvas.printf("%s [%s]:\r\n", ccpm.GetTitle(), ccpm.GetUnit());
+    tempCanvas.setTextFont(4); // 26px ascii
+    tempCanvas.setCursor(0, 0);
+    tempCanvas.setTextSize(1);
+    tempCanvas.printf("%s [%s]:\r\n", temperature.GetTitle(), temperature.GetUnit());
 
-  co2Canvas.setTextFont(7);// 48px 7seg
-  co2Canvas.setCursor(0, LABEL_HEIGHT);
-	co2Canvas.setTextSize(1);
+    tempCanvas.setTextFont(7); // 48px 7seg
+    tempCanvas.setCursor(0, LABEL_HEIGHT);
+    tempCanvas.setTextSize(1);
+    float tempValue;
+    if (temperature.Peek(&tempValue, 100) == 0)
+    {
+      tempCanvas.printf("%2.1f\r\n", tempValue);
+    }
 
-  float ccpmValue;// = 1.0;
-  if (ccpm.Peek(&ccpmValue, 100) == 0){
-    co2Canvas.printf("%4.0f\r\n", ccpmValue);
-  }
+    // grid row2,col1
+    humidCanvas.fillScreen(BLACK);
+    humidCanvas.setTextFont(4); // 26px ascii
+    humidCanvas.setCursor(0, 0);
+    humidCanvas.setTextSize(1);
+    humidCanvas.printf("%s [%s]:\r\n", humidity.GetTitle(), humidity.GetUnit());
 
-  // grid row1.col1
-  disconfortCanvas.fillScreen(BLACK);
-  disconfortCanvas.setTextFont(4);// 26px ascii
-  disconfortCanvas.setCursor(0, 0);
-	disconfortCanvas.setTextSize(1);
-  if (discomfortIndex.GetValue() < 55)
-  {
-    disconfortCanvas.printf("((>_<))  \r\n");
-  }
-  else if(discomfortIndex.GetValue() < 75)
-  {
-    disconfortCanvas.printf("(^_^)    \r\n");
-  }
-  else
-  {
-    disconfortCanvas.printf("(x_x;)   \r\n");
-  }
+    humidCanvas.setTextFont(7); // 48px 7seg
+    humidCanvas.setCursor(0, LABEL_HEIGHT);
+    humidCanvas.setTextSize(1);
+    float humidValue;
+    if (humidity.Peek(&humidValue, 100) == 0)
+    {
+      humidCanvas.printf("%2.1f\r\n", humidValue);
+    }
 
-  disconfortCanvas.setTextFont(7);// 48px 7seg
-  disconfortCanvas.setCursor(0, LABEL_HEIGHT);
-	disconfortCanvas.setTextSize(1);
-  disconfortCanvas.printf("%d\r\n", discomfortIndex.GetValue());
+    // grid row1,col1
+    waveChartCanvas.fillScreen(DARKGREY);
 
-  // grid row2,col0
-  tempCanvas.fillScreen(BLACK);
+    if (mode == INDICATOR)
+    {
+      display.startWrite();
 
-  tempCanvas.setTextFont(4);// 26px ascii
-  tempCanvas.setCursor(0, 0);
-	tempCanvas.setTextSize(1);
-  tempCanvas.printf("%s [%s]:\r\n", temperature.GetTitle(), temperature.GetUnit());
-
-  tempCanvas.setTextFont(7);// 48px 7seg
-  tempCanvas.setCursor(0, LABEL_HEIGHT);
-	tempCanvas.setTextSize(1);
-  float tempValue;
-  if (temperature.Peek(&tempValue, 100) == 0){
-    tempCanvas.printf("%2.1f\r\n", tempValue);
-  }
-
-  // grid row2,col1
-  humidCanvas.fillScreen(BLACK);
-  humidCanvas.setTextFont(4);// 26px ascii
-  humidCanvas.setCursor(0, 0);
-	humidCanvas.setTextSize(1);
-  humidCanvas.printf("%s [%s]:\r\n", humidity.GetTitle(), humidity.GetUnit());
-
-  humidCanvas.setTextFont(7);// 48px 7seg
-  humidCanvas.setCursor(0, LABEL_HEIGHT);
-	humidCanvas.setTextSize(1);
-  float humidValue;
-  if (humidity.Peek(&humidValue, 100) == 0){
-    humidCanvas.printf("%2.1f\r\n", humidValue);
-  }
-
-  // grid row1,col1
-  waveChartCanvas.fillScreen(DARKGREY);
-
-  if (mode == INDICATOR){
-    waveChartCanvas.fillScreen(BLACK);
-
-    display.startWrite(); 
-    waveChartCanvas.pushSprite(COL0_X, ROW1_Y);
-
-    headerCanvas.pushSprite(COL0_X, ROW0_Y);
-    co2Canvas.pushSprite(COL0_X, ROW1_Y);
-    disconfortCanvas.pushSprite(COL1_X, ROW1_Y);
-    tempCanvas.pushSprite(COL0_X, ROW2_Y);
-    humidCanvas.pushSprite(COL1_X, ROW2_Y);
-    display.endWrite(); 
-  }
-  else if (mode == WAVE_CHART){
-    display.startWrite(); 
-    headerCanvas.pushSprite(COL0_X, ROW0_Y);
-    waveChartCanvas.pushSprite(COL0_X, ROW1_Y);
-    display.endWrite(); 
-  }
-  else{
-
+      headerCanvas.pushSprite(COL0_X, ROW0_Y);
+      co2Canvas.pushSprite(COL0_X, ROW1_Y);
+      disconfortCanvas.pushSprite(COL1_X, ROW1_Y);
+      tempCanvas.pushSprite(COL0_X, ROW2_Y);
+      humidCanvas.pushSprite(COL1_X, ROW2_Y);
+      display.endWrite();
+    }
+    else if (mode == WAVE_CHART)
+    {
+      display.startWrite();
+      headerCanvas.pushSprite(COL0_X, ROW0_Y);
+      waveChartCanvas.pushSprite(COL0_X, ROW1_Y);
+      display.endWrite();
+    }
+    else
+    {
+    }
   }
 }
