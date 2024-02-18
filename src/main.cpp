@@ -36,6 +36,7 @@ void setup()
   Serial.begin(UART_BAUDRATE);
   Wire.begin();
   mhz19c = MHZ19C(MHZ19C_PWM_PIN);
+  Serial.println("Device initialized.");
 
   // 画面初期化
   display.init();
@@ -45,17 +46,22 @@ void setup()
   disconfortCanvas.createSprite(BLOCK_WIDTH, BLOCK_HEIGHT);
   tempCanvas.createSprite(BLOCK_WIDTH, BLOCK_HEIGHT);
   humidCanvas.createSprite(BLOCK_WIDTH, BLOCK_HEIGHT);
+  Serial.println("Display initialized.");
 
 	// Task初期化
   disableCore0WDT();
+  Serial.println("disableCore0WDT.");
 	disableCore1WDT();
+  Serial.println("disableCore1WDT.");
 
   status = xTaskCreatePinnedToCore(connectWifiTask, "wifiTask", 4096, NULL, 1, &handleWifiConnectTask, 1);
   configASSERT(status == pdPASS);
+  Serial.println("wifiTask Created.");
 
   handleCheckWifiStateTimer = xTimerCreate("checkWifiStateTask", pdMS_TO_TICKS(500), pdTRUE, NULL, checkWifiStateTask);
   handleAcqTimer = xTimerCreate("acqTask", pdMS_TO_TICKS(ACQ_INTERVAL_MS), pdTRUE, NULL, acquisitionTask);
   handlePrintTimer = xTimerCreate("printTask", pdMS_TO_TICKS(PRINT_INTERVAL_MS), pdTRUE, NULL, printTask);
+  Serial.println("timers Created.");
 }
 
 void loop()
@@ -67,33 +73,41 @@ void connectWifiTask(void* arg){
   // 接続開始
 	WiFi.begin(ssid, pass);
   display.println("Start WiFi connection");
+  Serial.println("Start WiFi connection.");
 
   // 状態監視開始
   xTimerStart(handleCheckWifiStateTimer, 0);
+  Serial.println("xTimerStart(handleCheckWifiStateTimer, 0);");
 
   // 通知を待つ
   if (xTaskNotifyWait(0, 0, NULL, pdMS_TO_TICKS(WIFI_CONNECT_TIMEOUT_MS))){
     // 接続完了の場合
     myDateTime.Initialize();
     display.println("WiFi connected");
+    Serial.println("WiFi connected");
   }
   else{
     // タイムアウトの場合
     display.println("WiFi connection timed out");
+    Serial.println("WiFi connection timed out");
   }
 
   xTimerStop(handleCheckWifiStateTimer, 0);
+  Serial.println("xTimerStop(handleCheckWifiStateTimer, 0)");
 
   // メイン処理初回実行
   display.fillScreen(BLACK);
   acquisitionTask(NULL);
   printTask(NULL);
+  Serial.println("acquisitionTask and printTask launched");
 
   // メイン処理タイマ開始
   xTimerStart(handleAcqTimer, 0);
   xTimerStart(handlePrintTimer, 0);
+  Serial.println("xTimerStart");
 
   vTaskDelete(NULL);
+  Serial.println("vTaskDelete(NULL)");
 }
 
 void checkWifiStateTask(void* arg){
