@@ -5,7 +5,6 @@ WiFiClient client;
 
 MyDateTime myDateTime;
 M5GFX display;
-// M5Canvas canvas(&display);
 
 M5Canvas headerCanvas(&display);
 M5Canvas co2Canvas(&display);
@@ -112,14 +111,14 @@ void acquisitionTask(void* arg)
 {
     if(mhz19c.get() == 0)
     {
-      ccpm.SetValue(mhz19c.ccpm);
+      ccpm.Enqueue(mhz19c.ccpm);
     }
 
     if(sht30.get() == 0)
     {
-      temperature.SetValue(sht30.cTemp);
-      humidity.SetValue(sht30.humidity);
-      discomfortIndex.Update(temperature.GetValue(), humidity.GetValue());
+      temperature.Enqueue(sht30.cTemp);
+      humidity.Enqueue(sht30.humidity);
+      discomfortIndex.Update(sht30.cTemp, sht30.humidity);
     }
 }
 
@@ -148,7 +147,11 @@ void printTask(void *arg){
   co2Canvas.setTextFont(7);// 48px 7seg
   co2Canvas.setCursor(0, LABEL_HEIGHT);
 	co2Canvas.setTextSize(1);
-  co2Canvas.printf("%4.0f\r\n", ccpm.GetValue());
+
+  float ccpmValue;// = 1.0;
+  if (ccpm.Peek(&ccpmValue, 100) == 0){
+    co2Canvas.printf("%4.0f\r\n", ccpmValue);
+  }
 
   // grid row1.col1
   disconfortCanvas.fillScreen(BLACK);
@@ -184,7 +187,10 @@ void printTask(void *arg){
   tempCanvas.setTextFont(7);// 48px 7seg
   tempCanvas.setCursor(0, LABEL_HEIGHT);
 	tempCanvas.setTextSize(1);
-  tempCanvas.printf("%2.1f\r\n", temperature.GetValue());
+  float tempValue;
+  if (temperature.Peek(&tempValue, 100) == 0){
+    tempCanvas.printf("%2.1f\r\n", tempValue);
+  }
 
   // grid row2,col1
   humidCanvas.fillScreen(BLACK);
@@ -196,7 +202,10 @@ void printTask(void *arg){
   humidCanvas.setTextFont(7);// 48px 7seg
   humidCanvas.setCursor(0, LABEL_HEIGHT);
 	humidCanvas.setTextSize(1);
-  humidCanvas.printf("%2.1f\r\n", humidity.GetValue());
+  float humidValue;
+  if (humidity.Peek(&humidValue, 100) == 0){
+    humidCanvas.printf("%2.1f\r\n", humidValue);
+  }
   
   display.startWrite(); 
   headerCanvas.pushSprite(COL0_X, ROW0_Y);
