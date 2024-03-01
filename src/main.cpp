@@ -5,6 +5,7 @@ WiFiClient client;
 
 MyDateTime myDateTime;
 M5GFX display;
+M5Waveform waveform(&display);
 
 M5Canvas headerCanvas(&display);
 M5Canvas co2Canvas(&display);
@@ -22,7 +23,7 @@ SHT3X sht30;
 MHZ19C mhz19c;
 
 bool hasPressed;
-ModeType mode = INDICATOR;
+ModeType mode = WAVE_CHART;
 
 TaskHandle_t handleWifiConnectTask;
 TaskHandle_t handlePrintTask;
@@ -46,11 +47,18 @@ void setup()
   display.init();
   display.setBrightness(64);
   headerCanvas.createSprite(HEADER_WIDTH, HEADER_HEIGHT);
+ 
+  // Indicator Mode
   co2Canvas.createSprite(BLOCK_WIDTH, BLOCK_HEIGHT);
   disconfortCanvas.createSprite(BLOCK_WIDTH, BLOCK_HEIGHT);
   tempCanvas.createSprite(BLOCK_WIDTH, BLOCK_HEIGHT);
   humidCanvas.createSprite(BLOCK_WIDTH, BLOCK_HEIGHT);
-  waveChartCanvas.createSprite(CHART_WIDTH, CHART_HEIGHT);
+
+  // WaveChart Mode
+  waveChartCanvas.createSprite(CHART_SPRITE_WIDTH, CHART_SPRITE_HEIGHT);
+  waveform.init(CHART_WIDTH, CHART_HEIGHT, 9, 9);
+  waveform.updateXAxisDiv(30);// 30s*10=300s
+  waveform.updateYAxisDiv(100);// 100*10=1000s
   Serial.println("Display initialized.");
 
   // Task初期化
@@ -126,6 +134,9 @@ void connectWifiTask(void *arg)
   xTimerStop(handleCheckWifiStateTimer, 0);
   Serial.println("xTimerStop(handleCheckWifiStateTimer, 0)");
 
+  // 描画更新開始
+  waveform.startDrawing(64, updateWaveChart);
+
   // メイン処理初回実行
   display.fillScreen(BLACK);
   acquisitionTask(NULL);
@@ -161,6 +172,7 @@ void acquisitionTask(void *arg)
   if (mhz19c.get() == 0)
   {
     ccpm.Enqueue(mhz19c.ccpm);
+    waveform.enqueue(mhz19c.ccpm);
   }
 
   if (sht30.get() == 0)
@@ -171,85 +183,92 @@ void acquisitionTask(void *arg)
   }
 }
 
-void updateIndicator(){
-    // grid row1,col0
-    co2Canvas.fillScreen(BLACK);
-    co2Canvas.setTextFont(4); // 26px ascii
-    co2Canvas.setCursor(0, 0);
-    co2Canvas.setTextSize(1);
-    co2Canvas.printf("%s [%s]:\r\n", ccpm.GetTitle(), ccpm.GetUnit());
+void updateIndicator()
+{
+  // grid row1,col0
+  co2Canvas.fillScreen(BLACK);
+  co2Canvas.setTextFont(4); // 26px ascii
+  co2Canvas.setCursor(0, 0);
+  co2Canvas.setTextSize(1);
+  co2Canvas.printf("%s [%s]:\r\n", ccpm.GetTitle(), ccpm.GetUnit());
 
-    co2Canvas.setTextFont(7); // 48px 7seg
-    co2Canvas.setCursor(0, LABEL_HEIGHT);
-    co2Canvas.setTextSize(1);
+  co2Canvas.setTextFont(7); // 48px 7seg
+  co2Canvas.setCursor(0, LABEL_HEIGHT);
+  co2Canvas.setTextSize(1);
 
-    float ccpmValue; // = 1.0;
-    if (ccpm.Peek(&ccpmValue, 100) == 0)
-    {
-      co2Canvas.printf("%4.0f\r\n", ccpmValue);
-    }
+  float ccpmValue; // = 1.0;
+  if (ccpm.Peek(&ccpmValue, 100) == 0)
+  {
+    co2Canvas.printf("%4.0f\r\n", ccpmValue);
+  }
 
-    // grid row1.col1
-    disconfortCanvas.fillScreen(BLACK);
-    disconfortCanvas.setTextFont(4); // 26px ascii
-    disconfortCanvas.setCursor(0, 0);
-    disconfortCanvas.setTextSize(1);
-    if (discomfortIndex.GetValue() < 55)
-    {
-      disconfortCanvas.printf("((>_<))  \r\n");
-    }
-    else if (discomfortIndex.GetValue() < 75)
-    {
-      disconfortCanvas.printf("(^_^)    \r\n");
-    }
-    else
-    {
-      disconfortCanvas.printf("(x_x;)   \r\n");
-    }
+  // grid row1.col1
+  disconfortCanvas.fillScreen(BLACK);
+  disconfortCanvas.setTextFont(4); // 26px ascii
+  disconfortCanvas.setCursor(0, 0);
+  disconfortCanvas.setTextSize(1);
+  if (discomfortIndex.GetValue() < 55)
+  {
+    disconfortCanvas.printf("((>_<))  \r\n");
+  }
+  else if (discomfortIndex.GetValue() < 75)
+  {
+    disconfortCanvas.printf("(^_^)    \r\n");
+  }
+  else
+  {
+    disconfortCanvas.printf("(x_x;)   \r\n");
+  }
 
-    disconfortCanvas.setTextFont(7); // 48px 7seg
-    disconfortCanvas.setCursor(0, LABEL_HEIGHT);
-    disconfortCanvas.setTextSize(1);
-    disconfortCanvas.printf("%d\r\n", discomfortIndex.GetValue());
+  disconfortCanvas.setTextFont(7); // 48px 7seg
+  disconfortCanvas.setCursor(0, LABEL_HEIGHT);
+  disconfortCanvas.setTextSize(1);
+  disconfortCanvas.printf("%d\r\n", discomfortIndex.GetValue());
 
-    // grid row2,col0
-    tempCanvas.fillScreen(BLACK);
+  // grid row2,col0
+  tempCanvas.fillScreen(BLACK);
 
-    tempCanvas.setTextFont(4); // 26px ascii
-    tempCanvas.setCursor(0, 0);
-    tempCanvas.setTextSize(1);
-    tempCanvas.printf("%s [%s]:\r\n", temperature.GetTitle(), temperature.GetUnit());
+  tempCanvas.setTextFont(4); // 26px ascii
+  tempCanvas.setCursor(0, 0);
+  tempCanvas.setTextSize(1);
+  tempCanvas.printf("%s [%s]:\r\n", temperature.GetTitle(), temperature.GetUnit());
 
-    tempCanvas.setTextFont(7); // 48px 7seg
-    tempCanvas.setCursor(0, LABEL_HEIGHT);
-    tempCanvas.setTextSize(1);
-    float tempValue;
-    if (temperature.Peek(&tempValue, 100) == 0)
-    {
-      tempCanvas.printf("%2.1f\r\n", tempValue);
-    }
+  tempCanvas.setTextFont(7); // 48px 7seg
+  tempCanvas.setCursor(0, LABEL_HEIGHT);
+  tempCanvas.setTextSize(1);
+  float tempValue;
+  if (temperature.Peek(&tempValue, 100) == 0)
+  {
+    tempCanvas.printf("%2.1f\r\n", tempValue);
+  }
 
-    // grid row2,col1
-    humidCanvas.fillScreen(BLACK);
-    humidCanvas.setTextFont(4); // 26px ascii
-    humidCanvas.setCursor(0, 0);
-    humidCanvas.setTextSize(1);
-    humidCanvas.printf("%s [%s]:\r\n", humidity.GetTitle(), humidity.GetUnit());
+  // grid row2,col1
+  humidCanvas.fillScreen(BLACK);
+  humidCanvas.setTextFont(4); // 26px ascii
+  humidCanvas.setCursor(0, 0);
+  humidCanvas.setTextSize(1);
+  humidCanvas.printf("%s [%s]:\r\n", humidity.GetTitle(), humidity.GetUnit());
 
-    humidCanvas.setTextFont(7); // 48px 7seg
-    humidCanvas.setCursor(0, LABEL_HEIGHT);
-    humidCanvas.setTextSize(1);
-    float humidValue;
-    if (humidity.Peek(&humidValue, 100) == 0)
-    {
-      humidCanvas.printf("%2.1f\r\n", humidValue);
-    }
+  humidCanvas.setTextFont(7); // 48px 7seg
+  humidCanvas.setCursor(0, LABEL_HEIGHT);
+  humidCanvas.setTextSize(1);
+  float humidValue;
+  if (humidity.Peek(&humidValue, 100) == 0)
+  {
+    humidCanvas.printf("%2.1f\r\n", humidValue);
+  }
 }
 
-void updateWaveChart(){
-    // grid row1,col1
-    // TODO
-    waveChartCanvas.fillScreen(DARKGREY);
+void updateWaveChart(void)
+{
+  // grid row1,col1
+  waveChartCanvas.fillScreen(BLACK);
+  waveChartCanvas.setTextFont(4); // 26px ascii
+  waveChartCanvas.setCursor(CHART_TITLE_X, CHART_TITLE_Y);
+  waveChartCanvas.setTextSize(1);
+  waveChartCanvas.printf("%s [%s]:\r\n", ccpm.GetTitle(), ccpm.GetUnit());
+
+  waveform.figureCanvas->pushSprite(&waveChartCanvas, CHART_X, CHART_Y, BLACK);
 }
 
 void printTask(void *arg)
@@ -274,7 +293,7 @@ void printTask(void *arg)
 
     updateIndicator();
 
-    updateWaveChart();
+    // updateWaveChart();
 
     display.startWrite();
     headerCanvas.pushSprite(COL0_X, ROW0_Y);
@@ -287,7 +306,7 @@ void printTask(void *arg)
     }
     else if (mode == WAVE_CHART)
     {
-      waveChartCanvas.pushSprite(COL0_X, ROW1_Y);
+      waveChartCanvas.pushSprite(CHART_SPRITE_X, CHART_SPRITE_Y);
     }
     else
     {
