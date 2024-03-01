@@ -23,7 +23,7 @@ SHT3X sht30;
 MHZ19C mhz19c;
 
 bool hasPressed;
-ModeType mode = WAVE_CHART;
+ModeType mode = INDICATOR;
 
 TaskHandle_t handleWifiConnectTask;
 TaskHandle_t handlePrintTask;
