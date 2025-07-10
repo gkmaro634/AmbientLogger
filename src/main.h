@@ -55,12 +55,6 @@
 
 #define MHZ19C_PWM_PIN 36
 
-// Function Prototypes
-void connectWifiTask(void *arg);
-void checkWifiStateTask(void *arg);
-void acquisitionTask(void *arg);
-void printTask(void *arg);
-void updateWaveChart(void);
 // typedef
 typedef enum
 {

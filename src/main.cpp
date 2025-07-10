@@ -22,20 +22,23 @@ DiscomfortIndex discomfortIndex;
 SHT3X sht30;
 MHZ19C mhz19c;
 
-bool hasPressed;
 ModeType mode = INDICATOR;
 
-TaskHandle_t handleWifiConnectTask;
-TaskHandle_t handlePrintTask;
+TaskHandle_t handleConnectWifiTask;
+TaskHandle_t handleSensorPollingTask;
+TaskHandle_t handleDisplayTask;
+TaskHandle_t handleInputTask;
 
-TimerHandle_t handleCheckWifiStateTimer;
-TimerHandle_t handleAcqTimer;
+// Function Prototypes
+void connectWifiTask(void *arg);
+void sensorPollingTask(void *arg);
+void displayTask(void *arg);
+void inputTask(void *arg);
+void updateWaveChart(void);
+void updateIndicator(void);
 
 void setup()
 {
-  // put your setup code here, to run once:
-  BaseType_t status;
-
   // デバイス初期化
   M5.begin();
   Serial.begin(UART_BAUDRATE);
@@ -47,7 +50,7 @@ void setup()
   display.init();
   display.setBrightness(64);
   headerCanvas.createSprite(HEADER_WIDTH, HEADER_HEIGHT);
- 
+
   // Indicator Mode
   co2Canvas.createSprite(BLOCK_WIDTH, BLOCK_HEIGHT);
   disconfortCanvas.createSprite(BLOCK_WIDTH, BLOCK_HEIGHT);
@@ -57,129 +60,164 @@ void setup()
   // WaveChart Mode
   waveChartCanvas.createSprite(CHART_SPRITE_WIDTH, CHART_SPRITE_HEIGHT);
   waveform.init(CHART_WIDTH, CHART_HEIGHT, 9, 9);
-  waveform.updateXAxisDiv(30);// 30s*10=300s
-  waveform.updateYAxisDiv(100);// 100*10=1000s
+  waveform.updateXAxisDiv(30);  // 30s*10=300s
+  waveform.updateYAxisDiv(100); // 100*10=1000s
   Serial.println("Display initialized.");
 
   // Task初期化
-  disableCore0WDT();
-  Serial.println("disableCore0WDT.");
-  disableCore1WDT();
-  Serial.println("disableCore1WDT.");
-
-  status = xTaskCreatePinnedToCore(connectWifiTask, "wifiTask", 4096, NULL, 1, &handleWifiConnectTask, 1);
+  BaseType_t status;
+  status = xTaskCreateUniversal(connectWifiTask, "connectWifiTask", 4096, NULL, 1, &handleConnectWifiTask, 1);
   configASSERT(status == pdPASS);
-  Serial.println("wifiTask Created.");
 
-  handleCheckWifiStateTimer = xTimerCreate("checkWifiStateTask", pdMS_TO_TICKS(500), pdTRUE, NULL, checkWifiStateTask);
-  handleAcqTimer = xTimerCreate("acqTask", pdMS_TO_TICKS(ACQ_INTERVAL_MS), pdTRUE, NULL, acquisitionTask);
-  Serial.println("timers Created.");
+  Serial.println("Task Created.");
+
 }
 
 void loop()
 {
-  delay(50);
-  M5.update();
-  auto detail = M5.Touch.getDetail();
-
-  if (hasPressed == true)
-  {
-    if (detail.isReleased())
-    {
-      hasPressed = false;
-      Serial.println("Touch detected.");
-      if (mode == INDICATOR)
-      {
-        mode = WAVE_CHART;
-      }
-      else
-      {
-        mode = INDICATOR;
-      }
-    }
-  }
-  else
-  {
-    hasPressed = detail.isPressed();
-  }
-  // vTaskDelete(NULL);
+  // NOP
+  delay(100);
 }
 
 void connectWifiTask(void *arg)
 {
-  // 接続開始
   WiFi.begin(ssid, pass);
-  display.println("Start WiFi connection");
-  Serial.println("Start WiFi connection.");
+  uint32_t start = millis();
+  while (WiFi.status() != WL_CONNECTED && millis() - start < WIFI_CONNECT_TIMEOUT_MS) {
+    display.print(".");
+    delay(500);
+  }
 
-  // 状態監視開始
-  xTimerStart(handleCheckWifiStateTimer, 0);
-  Serial.println("xTimerStart(handleCheckWifiStateTimer, 0);");
-
-  // 通知を待つ
-  if (xTaskNotifyWait(0, 0, NULL, pdMS_TO_TICKS(WIFI_CONNECT_TIMEOUT_MS)))
-  {
-    // 接続完了の場合
+  if (WiFi.status() == WL_CONNECTED) {
     myDateTime.Initialize();
     display.println("WiFi connected");
-    Serial.println("WiFi connected");
+  } else {
+    display.println("WiFi connection timeout");
   }
-  else
+
+  // WiFi接続成否にかかわらずほかタスクをこのタイミングで起動
+  BaseType_t status;
+  status = xTaskCreateUniversal(sensorPollingTask, "sensorPollingTask", 4096, NULL, 2, &handleSensorPollingTask, 0);
+  configASSERT(status == pdPASS);
+
+  status = xTaskCreateUniversal(displayTask, "displayTask", 4096, NULL, 1, &handleDisplayTask, 1);
+  configASSERT(status == pdPASS);
+
+  status = xTaskCreateUniversal(inputTask, "inputTask", 4096, NULL, 1, &handleInputTask, 1);
+  configASSERT(status == pdPASS);
+
+  Serial.printf("connectWifiTask Stack high water mark: %d bytes\n", uxTaskGetStackHighWaterMark(NULL));
+  vTaskDelete(NULL);
+}
+
+void sensorPollingTask(void *arg)
+{
+  // init
+  Serial.printf("sensorPollingTask Stack high water mark: %d bytes\n", uxTaskGetStackHighWaterMark(NULL));
+
+  // loop
+  while (true)
   {
-    // タイムアウトの場合
-    display.println("WiFi connection timed out");
-    Serial.println("WiFi connection timed out");
+    if (mhz19c.get() == 0)
+    {
+      ccpm.Enqueue(mhz19c.ccpm);
+      waveform.enqueue(mhz19c.ccpm);
+    }
+
+    if (sht30.get() == 0)
+    {
+      temperature.Enqueue(sht30.cTemp);
+      humidity.Enqueue(sht30.humidity);
+      discomfortIndex.Update(sht30.cTemp, sht30.humidity);
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(ACQ_INTERVAL_MS));
   }
+}
 
-  xTimerStop(handleCheckWifiStateTimer, 0);
-  Serial.println("xTimerStop(handleCheckWifiStateTimer, 0)");
+void displayTask(void *arg)
+{
+  // init
+  Serial.printf("displayTask Stack high water mark: %d bytes\n", uxTaskGetStackHighWaterMark(NULL));
 
-  // 描画更新開始
   waveform.startDrawing(64, updateWaveChart);
 
-  // メイン処理初回実行
-  display.fillScreen(BLACK);
-  acquisitionTask(NULL);
-  Serial.println("acquisitionTask and printTask launched");
-
-  // メイン処理タイマ開始
-  xTimerStart(handleAcqTimer, 0);
-  Serial.println("xTimerStart(handleAcqTimer, 0)");
-
-  auto status = xTaskCreatePinnedToCore(printTask, "printTask", 8192, NULL, 1, &handlePrintTask, 1);
-  configASSERT(status == pdPASS);
-  Serial.println("printTask Created.");
-
-  vTaskDelete(NULL);
-  Serial.println("vTaskDelete(NULL)");
-}
-
-void checkWifiStateTask(void *arg)
-{
-  // print "."
-  display.print(".");
-
-  // 状態を取得し接続完了なら通知する
-  if (WiFi.status() == WL_CONNECTED)
+  // loop
+  while (true)
   {
-    // 通知
-    xTaskNotifyGive(handleWifiConnectTask);
+    myDateTime.GetLocalTime();
+
+    // grid row0,col0
+    headerCanvas.fillScreen(BLACK);
+    headerCanvas.setTextFont(7); // 48px 7seg
+    headerCanvas.setCursor(0, 0);
+    headerCanvas.setTextSize(1);
+    headerCanvas.printf("%02d:%02d\r\n", myDateTime.dt_hour, myDateTime.dt_min);
+
+    // canvas.setTextFont(7);// 48px 7seg
+    // canvas.setCursor(0, 0);
+    // canvas.setTextSize(1);
+    // canvas.printf("%02d/%02d\r\n" ,myDateTime.dt_month ,myDateTime.dt_day);
+
+    updateIndicator();
+
+    // updateWaveChart();
+
+    display.startWrite();
+    headerCanvas.pushSprite(COL0_X, ROW0_Y);
+    if (mode == INDICATOR)
+    {
+      co2Canvas.pushSprite(COL0_X, ROW1_Y);
+      disconfortCanvas.pushSprite(COL1_X, ROW1_Y);
+      tempCanvas.pushSprite(COL0_X, ROW2_Y);
+      humidCanvas.pushSprite(COL1_X, ROW2_Y);
+    }
+    else if (mode == WAVE_CHART)
+    {
+      waveChartCanvas.pushSprite(CHART_SPRITE_X, CHART_SPRITE_Y);
+    }
+    else
+    {
+    }
+    display.endWrite();
+
+    vTaskDelay(pdMS_TO_TICKS(PRINT_INTERVAL_MS));
   }
 }
 
-void acquisitionTask(void *arg)
+void inputTask(void *arg)
 {
-  if (mhz19c.get() == 0)
-  {
-    ccpm.Enqueue(mhz19c.ccpm);
-    waveform.enqueue(mhz19c.ccpm);
-  }
+  // init
+  Serial.printf("inputTask Stack high water mark: %d bytes\n", uxTaskGetStackHighWaterMark(NULL));
 
-  if (sht30.get() == 0)
+  bool hasPressed = false;
+
+  // loop
+  while (true)
   {
-    temperature.Enqueue(sht30.cTemp);
-    humidity.Enqueue(sht30.humidity);
-    discomfortIndex.Update(sht30.cTemp, sht30.humidity);
+    M5.update();
+    auto detail = M5.Touch.getDetail();
+
+    if (hasPressed == true)
+    {
+      if (detail.isReleased())
+      {
+        hasPressed = false;
+        Serial.println("Touch detected.");
+        if (mode == INDICATOR)
+        {
+          mode = WAVE_CHART;
+        }
+        else
+        {
+          mode = INDICATOR;
+        }
+      }
+    }
+    else
+    {
+      hasPressed = detail.isPressed();
+    }
   }
 }
 
@@ -271,46 +309,3 @@ void updateWaveChart(void)
   waveform.figureCanvas->pushSprite(&waveChartCanvas, CHART_X, CHART_Y, BLACK);
 }
 
-void printTask(void *arg)
-{
-  while (true)
-  {
-    delay(PRINT_INTERVAL_MS);
-
-    myDateTime.GetLocalTime();
-
-    // grid row0,col0
-    headerCanvas.fillScreen(BLACK);
-    headerCanvas.setTextFont(7); // 48px 7seg
-    headerCanvas.setCursor(0, 0);
-    headerCanvas.setTextSize(1);
-    headerCanvas.printf("%02d:%02d\r\n", myDateTime.dt_hour, myDateTime.dt_min);
-
-    // canvas.setTextFont(7);// 48px 7seg
-    // canvas.setCursor(0, 0);
-    // canvas.setTextSize(1);
-    // canvas.printf("%02d/%02d\r\n" ,myDateTime.dt_month ,myDateTime.dt_day);
-
-    updateIndicator();
-
-    // updateWaveChart();
-
-    display.startWrite();
-    headerCanvas.pushSprite(COL0_X, ROW0_Y);
-    if (mode == INDICATOR)
-    {
-      co2Canvas.pushSprite(COL0_X, ROW1_Y);
-      disconfortCanvas.pushSprite(COL1_X, ROW1_Y);
-      tempCanvas.pushSprite(COL0_X, ROW2_Y);
-      humidCanvas.pushSprite(COL1_X, ROW2_Y);
-    }
-    else if (mode == WAVE_CHART)
-    {
-      waveChartCanvas.pushSprite(CHART_SPRITE_X, CHART_SPRITE_Y);
-    }
-    else
-    {
-    }
-    display.endWrite();
-  }
-}
