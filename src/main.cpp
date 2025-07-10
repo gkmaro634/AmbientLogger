@@ -138,6 +138,7 @@ void sensorPollingTask(void *arg)
 void displayTask(void *arg)
 {
   // init
+  display.fillScreen(BLACK);
   Serial.printf("displayTask Stack high water mark: %d bytes\n", uxTaskGetStackHighWaterMark(NULL));
 
   waveform.startDrawing(64, updateWaveChart);
