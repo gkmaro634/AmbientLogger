@@ -1,9 +1,7 @@
 #include "main.h"
 
 // valiables
-// bool isSDMounted = false;
 AsyncWebServer server(80);
-// bool isApMode = false;
 WiFiClient client;
 
 MyDateTime myDateTime;
@@ -53,9 +51,6 @@ void setup()
   if (!SD.begin(4)) {
     Serial.println("SD Card Mount Failed");
   }
-  // else{
-  //   isSDMounted = true;
-  // }
 
   mhz19c = MHZ19C(MHZ19C_PWM_PIN);
   Serial.println("Device initialized.");
@@ -83,7 +78,6 @@ void setup()
   if (isConfigMode)
   {
     // APモードで起動
-    // isApMode = true;
     Serial.println("Config mode requested. Starting in AP mode.");
     startAPMode();
   }
@@ -104,10 +98,6 @@ void setup()
 void loop()
 {
   // NOP
-  // if (isApMode) {
-  //   // APモードではメインループは空
-  //   server.handleClient();
-  // }
   delay(100);
 }
 
