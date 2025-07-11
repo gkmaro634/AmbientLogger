@@ -1,6 +1,7 @@
 #include "main.h"
 
 // valiables
+AsyncWebServer server(80);
 WiFiClient client;
 
 MyDateTime myDateTime;
@@ -30,6 +31,10 @@ TaskHandle_t handleDisplayTask;
 TaskHandle_t handleInputTask;
 
 // Function Prototypes
+bool isConfigModeRequested(void);
+void startAPMode(void);
+void startWebConfigServer(void);
+WifiConfig loadWifiConfig(const char* filename = "/wifi.txt");
 void connectWifiTask(void *arg);
 void sensorPollingTask(void *arg);
 void displayTask(void *arg);
@@ -43,6 +48,10 @@ void setup()
   M5.begin();
   Serial.begin(UART_BAUDRATE);
   Wire.begin();
+  if (!SD.begin(4)) {
+    Serial.println("SD Card Mount Failed");
+  }
+
   mhz19c = MHZ19C(MHZ19C_PWM_PIN);
   Serial.println("Device initialized.");
 
@@ -64,13 +73,26 @@ void setup()
   waveform.updateYAxisDiv(100); // 100*10=1000s
   Serial.println("Display initialized.");
 
-  // Task初期化
-  BaseType_t status;
-  status = xTaskCreateUniversal(connectWifiTask, "connectWifiTask", 4096, NULL, 1, &handleConnectWifiTask, 1);
-  configASSERT(status == pdPASS);
+  // WiFi判定
+  bool isConfigMode = isConfigModeRequested();
+  if (isConfigMode)
+  {
+    // APモードで起動
+    Serial.println("Config mode requested. Starting in AP mode.");
+    startAPMode();
+  }
+  else{
+    // STAモードで起動
+    WifiConfig wifiConfig = loadWifiConfig();
+    WifiConfig* configPtr = (WifiConfig*)pvPortMalloc(sizeof(WifiConfig));
+    memcpy(configPtr, &wifiConfig, sizeof(WifiConfig));    
 
-  Serial.println("Task Created.");
+    BaseType_t status;
+    status = xTaskCreateUniversal(connectWifiTask, "connectWifiTask", 4096, configPtr, 1, &handleConnectWifiTask, 1);
+    configASSERT(status == pdPASS);
 
+    Serial.println("Task Created.");
+  }
 }
 
 void loop()
@@ -79,9 +101,94 @@ void loop()
   delay(100);
 }
 
+bool isConfigModeRequested() {
+  M5.update();
+  auto detail = M5.Touch.getDetail();
+  if (detail.isPressed()) {
+    int y = detail.y;
+    // 下部の範囲
+    return y > 200;
+  }
+}
+
+void startWebConfigServer() {
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(200, "text/html", htmlPage);
+  });
+
+  server.on("/save", HTTP_POST, [](AsyncWebServerRequest *request) {
+    String ssid, password;
+    if (request->hasParam("ssid", true)) {
+      ssid = request->getParam("ssid", true)->value();
+    }
+    if (request->hasParam("password", true)) {
+      password = request->getParam("password", true)->value();
+    }
+
+    if (ssid.length() > 0 && password.length() > 0) {
+      File file = SD.open("/wifi.txt", FILE_WRITE);
+      if (file) {
+        file.printf("%s,%s\n", ssid.c_str(), password.c_str());
+        file.close();
+        request->send(200, "text/plain", "WiFi settings saved. Restarting...");
+        delay(1000);
+        ESP.restart();
+      } else {
+        request->send(500, "text/plain", "Failed to save WiFi settings.");
+      }
+    } else {
+      request->send(400, "text/plain", "Invalid input.");
+    }
+  });
+
+  server.begin();
+}
+
+void startAPMode() {
+  String ssid = "AmbientMonitor";
+  String password = "12345678";
+  WiFi.softAP(ssid, password);
+  IPAddress ip = WiFi.softAPIP();
+  Serial.printf("AP mode started. Connect to: http://%s/\n", ip.toString().c_str());
+  display.printf("SSID: %s\n", ssid.c_str());
+  display.printf("Password: %s\n", password.c_str());
+  display.printf("Connect to: http://%s/\n", ip.toString().c_str());
+  String url = "http://" + ip.toString() + "/";
+  display.fillRect(0, 24, display.width(), display.height()-24, WHITE);
+  display.qrcode(url, 4, 28, 192);
+
+  startWebConfigServer();
+}
+
+WifiConfig loadWifiConfig(const char* filename){
+  WifiConfig config = {0};
+  File file = SD.open(filename);
+  if (!file) {
+    Serial.println("Failed to open wifi config file");
+    return config; // Return empty config if file not found
+  }
+
+  String line = file.readStringUntil('\n');
+  file.close();
+
+  int commaIndex = line.indexOf(',');
+  if (commaIndex < 0) {
+    Serial.println("Invalid wifi config format");
+    return config; // Return empty config if format is invalid
+  }
+
+  line.substring(0, commaIndex).toCharArray(config.ssid, sizeof(config.ssid));
+  line.substring(commaIndex + 1).toCharArray(config.pass, sizeof(config.pass));
+  Serial.println("Loaded WiFi Config:");
+  Serial.printf("SSID: %s\n", config.ssid);
+
+  return config; // Return empty config if file not found or error
+}
+
 void connectWifiTask(void *arg)
 {
-  WiFi.begin(ssid, pass);
+  WifiConfig* config = (WifiConfig*)arg;
+  WiFi.begin(config->ssid, config->pass);
   uint32_t start = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - start < WIFI_CONNECT_TIMEOUT_MS) {
     display.print(".");
