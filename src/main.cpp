@@ -66,14 +66,27 @@ void setup()
   Serial.println("Display initialized.");
 
   // WiFi判定
+  WifiConfig wifiConfig = loadWifiConfig();
+  if (strlen(wifiConfig.ssid) == 0 || strlen(wifiConfig.pass) == 0)
+  {
+    // TODO: APモードで起動
+    Serial.println("No WiFi config found. Starting in AP mode.");
+    while (true){
+      delay(1000);
+    }
+  }
+  else
+  {
+    // STAモードで起動
+    WifiConfig* configPtr = (WifiConfig*)pvPortMalloc(sizeof(WifiConfig));
+    memcpy(configPtr, &wifiConfig, sizeof(WifiConfig));    
 
-  // Task初期化
-  BaseType_t status;
-  status = xTaskCreateUniversal(connectWifiTask, "connectWifiTask", 4096, NULL, 1, &handleConnectWifiTask, 1);
-  configASSERT(status == pdPASS);
+    BaseType_t status;
+    status = xTaskCreateUniversal(connectWifiTask, "connectWifiTask", 4096, configPtr, 1, &handleConnectWifiTask, 1);
+    configASSERT(status == pdPASS);
 
-  Serial.println("Task Created.");
-
+    Serial.println("Task Created.");
+  }
 }
 
 void loop()
@@ -83,7 +96,7 @@ void loop()
 }
 
 WifiConfig loadWifiConfig(const char* filename){
-  WifiConfig config;
+  WifiConfig config = {0};
   if (!SD.begin(4)) {
     Serial.println("SD Card Mount Failed");
     return config; // Return empty config if SD card mount failed
@@ -114,8 +127,8 @@ WifiConfig loadWifiConfig(const char* filename){
 
 void connectWifiTask(void *arg)
 {
-  WifiConfig config = loadWifiConfig("/wifi.txt");
-  WiFi.begin(config.ssid, config.pass);
+  WifiConfig* config = (WifiConfig*)arg;
+  WiFi.begin(config->ssid, config->pass);
   uint32_t start = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - start < WIFI_CONNECT_TIMEOUT_MS) {
     display.print(".");
