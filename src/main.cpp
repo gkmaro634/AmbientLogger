@@ -30,6 +30,7 @@ TaskHandle_t handleDisplayTask;
 TaskHandle_t handleInputTask;
 
 // Function Prototypes
+WifiConfig loadWifiConfig(const char* filename = "/wifi.txt");
 void connectWifiTask(void *arg);
 void sensorPollingTask(void *arg);
 void displayTask(void *arg);
@@ -64,6 +65,8 @@ void setup()
   waveform.updateYAxisDiv(100); // 100*10=1000s
   Serial.println("Display initialized.");
 
+  // WiFi判定
+
   // Task初期化
   BaseType_t status;
   status = xTaskCreateUniversal(connectWifiTask, "connectWifiTask", 4096, NULL, 1, &handleConnectWifiTask, 1);
@@ -79,9 +82,40 @@ void loop()
   delay(100);
 }
 
+WifiConfig loadWifiConfig(const char* filename){
+  WifiConfig config;
+  if (!SD.begin(4)) {
+    Serial.println("SD Card Mount Failed");
+    return config; // Return empty config if SD card mount failed
+  }
+
+  File file = SD.open(filename);
+  if (!file) {
+    Serial.println("Failed to open wifi config file");
+    return config; // Return empty config if file not found
+  }
+
+  String line = file.readStringUntil('\n');
+  file.close();
+
+  int commaIndex = line.indexOf(',');
+  if (commaIndex < 0) {
+    Serial.println("Invalid wifi config format");
+    return config; // Return empty config if format is invalid
+  }
+
+  line.substring(0, commaIndex).toCharArray(config.ssid, sizeof(config.ssid));
+  line.substring(commaIndex + 1).toCharArray(config.pass, sizeof(config.pass));
+  Serial.println("Loaded WiFi Config:");
+  Serial.printf("SSID: %s\n", config.ssid);
+
+  return config; // Return empty config if file not found or error
+}
+
 void connectWifiTask(void *arg)
 {
-  WiFi.begin(ssid, pass);
+  WifiConfig config = loadWifiConfig("/wifi.txt");
+  WiFi.begin(config.ssid, config.pass);
   uint32_t start = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - start < WIFI_CONNECT_TIMEOUT_MS) {
     display.print(".");

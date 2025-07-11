@@ -4,12 +4,14 @@
 // Includes
 #include <Arduino.h>
 #include <M5Unified.h>
+#include <SD.h>
+#include <SPI.h>
 #include <Wire.h>
 #include <WiFi.h>
 #include <math.h>
 #include <time.h>
 #include <M5GFX.h>
-#include "secret.h"
+// #include "secret.h"
 #include "SHT3X.h"
 #include "MHZ19C.h"
 #include "MyDateTime.h"
@@ -61,5 +63,11 @@ typedef enum
     INDICATOR = 1,
     WAVE_CHART,
 } ModeType;
+
+struct WifiConfig
+{
+    char ssid[32];
+    char pass[64];
+};
 
 #endif /* MAIN_H */
