@@ -10,8 +10,12 @@
 #include <WiFi.h>
 #include <math.h>
 #include <time.h>
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+#include <ArduinoJson.h>
 #include <M5GFX.h>
 // #include "secret.h"
+#include "htmlPage.hpp"
 #include "SHT3X.h"
 #include "MHZ19C.h"
 #include "MyDateTime.h"

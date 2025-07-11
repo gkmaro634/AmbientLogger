@@ -1,6 +1,9 @@
 #include "main.h"
 
 // valiables
+// bool isSDMounted = false;
+AsyncWebServer server(80);
+// bool isApMode = false;
 WiFiClient client;
 
 MyDateTime myDateTime;
@@ -31,6 +34,8 @@ TaskHandle_t handleInputTask;
 
 // Function Prototypes
 bool isConfigModeRequested(void);
+void startAPMode(void);
+void startWebConfigServer(void);
 WifiConfig loadWifiConfig(const char* filename = "/wifi.txt");
 void connectWifiTask(void *arg);
 void sensorPollingTask(void *arg);
@@ -45,6 +50,13 @@ void setup()
   M5.begin();
   Serial.begin(UART_BAUDRATE);
   Wire.begin();
+  if (!SD.begin(4)) {
+    Serial.println("SD Card Mount Failed");
+  }
+  // else{
+  //   isSDMounted = true;
+  // }
+
   mhz19c = MHZ19C(MHZ19C_PWM_PIN);
   Serial.println("Device initialized.");
 
@@ -70,11 +82,10 @@ void setup()
   bool isConfigMode = isConfigModeRequested();
   if (isConfigMode)
   {
-    // TODO: APモードで起動
+    // APモードで起動
+    // isApMode = true;
     Serial.println("Config mode requested. Starting in AP mode.");
-    while (true){
-      delay(1000);
-    }
+    startAPMode();
   }
   else{
     // STAモードで起動
@@ -93,6 +104,10 @@ void setup()
 void loop()
 {
   // NOP
+  // if (isApMode) {
+  //   // APモードではメインループは空
+  //   server.handleClient();
+  // }
   delay(100);
 }
 
@@ -106,13 +121,57 @@ bool isConfigModeRequested() {
   }
 }
 
+void startWebConfigServer() {
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
+    request->send(200, "text/html", htmlPage);
+  });
+
+  server.on("/save", HTTP_POST, [](AsyncWebServerRequest *request) {
+    String ssid, password;
+    if (request->hasParam("ssid", true)) {
+      ssid = request->getParam("ssid", true)->value();
+    }
+    if (request->hasParam("password", true)) {
+      password = request->getParam("password", true)->value();
+    }
+
+    if (ssid.length() > 0 && password.length() > 0) {
+      File file = SD.open("/wifi.txt", FILE_WRITE);
+      if (file) {
+        file.printf("%s,%s\n", ssid.c_str(), password.c_str());
+        file.close();
+        request->send(200, "text/plain", "WiFi settings saved. Restarting...");
+        delay(1000);
+        ESP.restart();
+      } else {
+        request->send(500, "text/plain", "Failed to save WiFi settings.");
+      }
+    } else {
+      request->send(400, "text/plain", "Invalid input.");
+    }
+  });
+
+  server.begin();
+}
+
+void startAPMode() {
+  String ssid = "AmbientMonitor";
+  String password = "12345678";
+  WiFi.softAP(ssid, password);
+  IPAddress ip = WiFi.softAPIP();
+  Serial.printf("AP mode started. Connect to: http://%s/\n", ip.toString().c_str());
+  display.printf("SSID: %s\n", ssid.c_str());
+  display.printf("Password: %s\n", password.c_str());
+  display.printf("Connect to: http://%s/\n", ip.toString().c_str());
+  String url = "http://" + ip.toString() + "/";
+  display.fillRect(0, 24, display.width(), display.height()-24, WHITE);
+  display.qrcode(url, 4, 28, 192);
+
+  startWebConfigServer();
+}
+
 WifiConfig loadWifiConfig(const char* filename){
   WifiConfig config = {0};
-  if (!SD.begin(4)) {
-    Serial.println("SD Card Mount Failed");
-    return config; // Return empty config if SD card mount failed
-  }
-
   File file = SD.open(filename);
   if (!file) {
     Serial.println("Failed to open wifi config file");
