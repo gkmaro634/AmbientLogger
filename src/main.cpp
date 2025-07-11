@@ -30,6 +30,7 @@ TaskHandle_t handleDisplayTask;
 TaskHandle_t handleInputTask;
 
 // Function Prototypes
+bool isConfigModeRequested(void);
 WifiConfig loadWifiConfig(const char* filename = "/wifi.txt");
 void connectWifiTask(void *arg);
 void sensorPollingTask(void *arg);
@@ -66,18 +67,18 @@ void setup()
   Serial.println("Display initialized.");
 
   // WiFi判定
-  WifiConfig wifiConfig = loadWifiConfig();
-  if (strlen(wifiConfig.ssid) == 0 || strlen(wifiConfig.pass) == 0)
+  bool isConfigMode = isConfigModeRequested();
+  if (isConfigMode)
   {
     // TODO: APモードで起動
-    Serial.println("No WiFi config found. Starting in AP mode.");
+    Serial.println("Config mode requested. Starting in AP mode.");
     while (true){
       delay(1000);
     }
   }
-  else
-  {
+  else{
     // STAモードで起動
+    WifiConfig wifiConfig = loadWifiConfig();
     WifiConfig* configPtr = (WifiConfig*)pvPortMalloc(sizeof(WifiConfig));
     memcpy(configPtr, &wifiConfig, sizeof(WifiConfig));    
 
@@ -93,6 +94,16 @@ void loop()
 {
   // NOP
   delay(100);
+}
+
+bool isConfigModeRequested() {
+  M5.update();
+  auto detail = M5.Touch.getDetail();
+  if (detail.isPressed()) {
+    int y = detail.y;
+    // 下部の範囲
+    return y > 200;
+  }
 }
 
 WifiConfig loadWifiConfig(const char* filename){
